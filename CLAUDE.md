@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Telegram Mini App for strength-training tracking. pnpm monorepo. UI text is Russian; code, comments and identifiers are English.
+Telegram Mini App for strength-training tracking. pnpm monorepo. UI text is Russian; code, comments, identifiers and all docs are English.
 
 ## Layout
 
@@ -10,6 +10,8 @@ Telegram Mini App for strength-training tracking. pnpm monorepo. UI text is Russ
 
 ## Rules
 
+- UI design tokens live in `apps/web/app/globals.css` (own palette; light/dark follows Telegram `colorScheme`). Use the components in `src/components/ui.tsx`; one primary action per screen goes into `BottomBar`.
+- e1RM is intentionally hidden from the UI (product decision); the API still returns it.
 - Business logic lives in `packages/shared/src/domain` or `packages/api/src/services`, never in React components.
 - The frontend talks only to `/api/v1`; never import Prisma or secrets into client code. No `NEXT_PUBLIC_*` secrets.
 - Every service function takes `userId` and checks ownership through the parent chain (`services/common.ts` `owned*` helpers). Not-owned ⇒ 404.
@@ -35,5 +37,5 @@ After changing `schema.prisma`: `pnpm --filter @gym/api exec prisma migrate dev 
 ## Gotchas
 
 - Vitest's on-disk module cache is disabled (`fsModuleCache: false`) — it lives at the repo root and was shared across packages, causing "failed to find the runner" errors. If they reappear: `npx vitest --clearCache`.
-- E2E uses `NEXT_DIST_DIR=.next-e2e` so it can run next to a normal `pnpm dev`.
+- E2E uses `NEXT_DIST_DIR=.next-e2e`, but two `next dev` servers in the same `apps/web` still fight over `next-env.d.ts` (each rewrites it for its dist dir) and the pages reload in a loop. Stop other dev servers before `pnpm test:e2e`, or run E2E in a copy of the repo.
 - `SetEntry` must stay mounted between sets (keyed per exercise); remounting races with fast input.

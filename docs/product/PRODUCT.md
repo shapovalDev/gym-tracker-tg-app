@@ -1,48 +1,47 @@
-# Продукт: Gym Tracker (Telegram Mini App)
+# Product: Gym Tracker (Telegram Mini App)
 
-Полное исходное ТЗ: [`SPEC.md`](./SPEC.md). Здесь — что вошло в MVP и какие решения приняты там,
-где ТЗ оставляло выбор.
+The original specification is in [`SPEC.md`](./SPEC.md). This file records what the MVP includes and
+the decisions taken where the specification left a choice.
 
-## MVP — реализовано
+## MVP — implemented
 
-- **Главная:** активная программа, следующая тренировка цикла, «Начать / Продолжить», последняя тренировка,
-  счётчики за 7 и 30 дней, прогресс по последним упражнениям (изменение e1RM), пустое состояние.
-- **Программы:** создание с любым числом тренировок, переименование, описание, добавление, удаление и
-  порядок тренировок, упражнения в тренировке (план: подходы, диапазон повторов, заметка), порядок упражнений,
-  дублирование тренировки и программы, переключение активной, архив.
-- **Библиотека упражнений:** создание, группа мышц, описание, поиск, фильтр, правка, архив.
-- **Тренировка:** старт и восстановление после перезагрузки, список упражнений, экран упражнения
-  (план, «прошлый раз», подходы, ввод веса и повторов со степперами), правка и удаление подходов,
-  пропуск подхода, добавление и удаление упражнений, завершение с подтверждением при недоделанных подходах, отмена,
-  итог (длительность, упражнения, подходы, объём), офлайн-очередь.
-- **История:** список с пагинацией, фильтр по периоду (30/90 дней, произвольный), детали, правка и
-  добавление подходов, удаление сессии.
-- **Прогресс:** выбор упражнения и периода (30 дней / 90 дней / год / всё время), графики e1RM, максимального веса, повторов
-  при выбранном весе и объёма, табличный вид, личные рекорды, сводка и изменение к прошлому периоду.
+- **Home:** the next workout of the active program with its exercise list, "Start" / "Continue", choosing
+  another workout of the cycle, the last workout, counters for 7 and 30 days, empty state.
+- **Programs:** any number of workouts per program, rename, description, add/delete/reorder workouts,
+  planned exercises per workout (sets, rep range, note), reordering, one-tap removal with undo, adding several
+  exercises from the library in one go, duplicating workouts and programs, switching the active program, archive.
+- **Exercise library:** create, muscle group, technique notes, search, filter, edit, archive. Technique notes
+  and plan notes are shown in the workout plan and during the workout.
+- **Workout:** start and restore after reload, exercise list with set progress, exercise screen (plan, notes,
+  "last time", recorded sets, weight/reps steppers), edit/delete/skip sets, add/remove exercises, finish with a
+  confirmation when sets are missing, cancel, summary (duration, exercises, sets, volume), offline queue.
+- **History:** paginated list, period filter (30/90 days, custom), details, editing and adding sets, deleting a session.
+- **Progress:** exercise and period (30 days / 90 days / year / all time), charts of max weight, reps at a
+  selected weight and volume, table view, personal records, totals and change versus the previous period.
 
-## Решения по неопределённым местам
+## Decisions on open questions
 
-| Вопрос                                                   | Решение                                                                                                                |
-| -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| Следующая тренировка, если удалили последнюю выполненную | Цикл начинается с первой тренировки программы                                                                          |
-| Переключение активной программы                          | У каждой программы своя позиция цикла, она сохраняется                                                                 |
-| Пропуск тренировки                                       | Пропуск не засчитывается. Если выбрать другую тренировку вручную и завершить её, следующей станет тренировка после неё |
-| Отменённая тренировка                                    | Хранится со статусом `cancelled`, не входит в историю по умолчанию и в статистику, цикл не двигает                     |
-| Завершение без всех плановых подходов                    | Требуется подтверждение. Незаписанные подходы просто отсутствуют                                                       |
-| «Прошлый раз»                                            | Подходы этого же упражнения (по ID) из последней завершённой сессии до текущей                                         |
-| Подсказка веса                                           | Поля заполняются последним подходом, но сохраняются только по нажатию «Записать»                                       |
-| e1RM                                                     | Формула Эпли, только для подходов с весом > 0 и 1–12 повторами (сопоставимость). Подписан как оценка                   |
-| Рекорды                                                  | За всё время. Графики и сводка — за выбранный период                                                                   |
-| Повторы на графике                                       | Лучший результат при выбранном весе, по умолчанию самый тяжёлый вес за период                                          |
-| Вес                                                      | 0–1000 кг, шаг 0,01, округление до сотых                                                                               |
-| Длительность                                             | От старта до завершения, подписана как общая                                                                           |
+| Question                                             | Decision                                                                                                             |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Next workout when the last completed one was deleted | The cycle restarts from the first workout                                                                            |
+| Switching the active program                         | Each program keeps its own cycle position                                                                            |
+| Skipping a workout                                   | A skip is not a completion. If you pick another workout manually and finish it, the next one is the workout after it |
+| Cancelled workout                                    | Stored with status `cancelled`; not in history by default, not in statistics, does not advance the cycle             |
+| Finishing without all planned sets                   | Requires confirmation; unrecorded sets simply do not exist                                                           |
+| "Last time"                                          | Sets of the same exercise (by id) from the latest completed session before the current one                           |
+| Weight suggestion                                    | Fields are pre-filled from the previous set, but nothing is saved until "Record set" is tapped                       |
+| e1RM                                                 | Removed from the UI at the user's request (the API still computes it, Epley formula, for possible future use)        |
+| Records                                              | All time; charts and totals use the selected period                                                                  |
+| Reps chart                                           | Best reps at the selected weight; defaults to the heaviest weight of the period                                      |
+| Weight                                               | 0–1000 kg, step 0.01, rounded to hundredths                                                                          |
+| Duration                                             | From start to finish, labelled as total workout duration                                                             |
 
-## Вне рамок MVP
+## Out of MVP scope
 
-Соцфункции, ИИ-тренер, питание, интеграции с часами, периодизация, платежи, админка, роли,
-пуш-уведомления (см. раздел 14 ТЗ). Storybook не настроен, чтобы не задерживать MVP.
+Social features, AI coach, nutrition, wearables, periodization, payments, admin panel, roles,
+push notifications (section 14 of the spec). Storybook is not set up so as not to delay the MVP.
 
-## Идеи на будущее
+## Ideas for later
 
-Таймер отдыха; заметки к сессии; суперсеты; фунты; экспорт CSV; шаблоны программ;
-напоминания через бота.
+Rest timer, session notes, supersets, pounds, CSV export, program templates, reminders via the bot,
+restricting the bot to an allowlist of Telegram ids.

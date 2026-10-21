@@ -87,10 +87,10 @@ export default function SessionDetailPage() {
     <>
       <PageHeader
         title={s.workoutName ?? 'Свободная тренировка'}
-        subtitle={`${formatDate(s.startedAt)}, ${formatTime(s.startedAt)}${s.programName ? ` · ${s.programName}` : ''}`}
+        subtitle={`${formatDate(s.startedAt)}, ${formatTime(s.startedAt)}${s.programName ? `, ${s.programName}` : ''}`}
       />
       {s.status === 'cancelled' && (
-        <p className="rounded-2xl bg-warning/15 px-4 py-3 text-sm">
+        <p className="rounded-2xl bg-skip-soft px-4 py-3 text-[15px]">
           Тренировка была отменена и не учитывается в статистике.
         </p>
       )}
@@ -122,7 +122,7 @@ export default function SessionDetailPage() {
               ),
             )}
             {e.sets.length === 0 && (
-              <li className="px-1 text-sm text-muted">Подходы не записаны</li>
+              <li className="px-1 text-[14px] text-muted">Подходы не записаны</li>
             )}
           </ul>
           {editable &&
@@ -138,16 +138,19 @@ export default function SessionDetailPage() {
                 }
               />
             ) : (
-              <button
-                type="button"
-                className="px-1 text-sm font-medium text-link"
+              <Button
+                size="sm"
+                variant="soft"
                 onClick={() => setEditing({ set: null, exerciseId: e.id })}
               >
-                + Добавить подход
-              </button>
+                Добавить подход
+              </Button>
             ))}
         </Section>
       ))}
+      <p className="px-1 text-[13px] text-muted">
+        Нажмите на подход, чтобы исправить вес или повторы. Статистика пересчитается сразу.
+      </p>
       <Button block variant="danger" onClick={() => setDeleting(true)}>
         Удалить тренировку
       </Button>

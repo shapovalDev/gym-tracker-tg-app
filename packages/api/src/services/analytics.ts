@@ -221,7 +221,12 @@ export async function homeState(db: Db, userId: string): Promise<HomeDto> {
         include: {
           workouts: {
             orderBy: { position: 'asc' },
-            include: { _count: { select: { exercises: true } } },
+            include: {
+              exercises: {
+                orderBy: { position: 'asc' },
+                select: { exercise: { select: { name: true } } },
+              },
+            },
           },
         },
       }),
@@ -253,7 +258,8 @@ export async function homeState(db: Db, userId: string): Promise<HomeDto> {
           id: next.id,
           name: next.name,
           position: next.position,
-          exerciseCount: next._count.exercises,
+          exerciseCount: next.exercises.length,
+          exerciseNames: next.exercises.map((e) => e.exercise.name),
         }
       : null,
     activeSession: activeSession

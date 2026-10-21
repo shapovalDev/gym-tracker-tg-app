@@ -1,82 +1,83 @@
-# Архитектура
+# Architecture
 
-## Главное ограничение: минимальная стоимость
+## Main constraint: minimal running cost
 
-Сейчас приложением пользуется один человек, но оно должно спокойно вырасти до продакшена.
-Поэтому архитектура **разворачивается одним сервисом на бесплатных тарифах**. При этом backend —
-отдельный пакет, который можно вынести в свой сервис без переписывания.
+The app is used by one person today but should be able to grow into a public product. It therefore
+**deploys as a single service on free tiers**, while the backend is a separate package that can be moved
+to its own service without rewriting.
 
-| Компонент       | Сейчас (≈ $0/мес)                                                   | При росте                                                                                                                |
-| --------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| UI + API        | Vercel Hobby (один Next.js-проект, API в route handler)             | Vercel Pro **или** Docker-образ на любом VPS / Fly / Render; API можно запустить отдельно (`packages/api/src/server.ts`) |
-| БД              | Supabase Free (Postgres)                                            | Supabase Pro, Neon или свой Postgres — достаточно поменять `DATABASE_URL`                                                |
-| Бот             | Telegram Bot API через webhook (нет постоянно работающего процесса) | без изменений                                                                                                            |
-| Внешние сервисы | нет (без аналитики, Sentry, Redis, очередей)                        | добавляются по необходимости                                                                                             |
+| Component         | Now (≈ $0/month)                                           | When it grows                                                                                                           |
+| ----------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| UI + API          | Vercel Hobby (one Next.js project, API in a route handler) | Vercel Pro **or** the Docker image on any VPS / Fly / Render; the API can run on its own (`packages/api/src/server.ts`) |
+| Database          | Supabase Free (Postgres)                                   | Supabase Pro, Neon or self-hosted Postgres — only `DATABASE_URL` changes                                                |
+| Bot               | Telegram Bot API via webhook (no always-on process)        | unchanged                                                                                                               |
+| External services | none (no analytics, Sentry, Redis or queues)               | added when needed                                                                                                       |
 
-Ограничения бесплатных тарифов (проверяйте актуальные условия у провайдеров): Vercel Hobby предназначен
-для некоммерческого использования; бесплатный проект Supabase **приостанавливается после ~7 дней без
-запросов** (восстанавливается кнопкой в панели) и ограничен по объёму БД. Для личного трекера этого хватает с запасом:
-год тренировок — это несколько мегабайт.
+Free-tier limits (check the providers' current terms): Vercel Hobby is for non-commercial use; a free
+Supabase project **is paused after ~7 days without requests** (restored from the dashboard) and has a
+database size limit. For a personal tracker this is plenty: a year of workouts is a few megabytes.
 
-## Структура
-
-```
-apps/web            Next.js 16 (App Router) — UI; app/api/[[...route]] монтирует API
-packages/api        Hono REST API: маршруты, сервисы, авторизация Telegram, Prisma
-packages/shared     Zod-схемы, DTO-типы, доменная логика (цикл, метрики, вес, периоды)
-```
-
-Зависимости направлены в одну сторону: `web → api → shared`, `web → shared`. Фронтенд не обращается
-к базе и не знает секретов: всё идёт через REST.
-
-## Ключевые решения
-
-1. **Hono внутри Next.js, а не отдельный сервер.** Один деплой, один домен (не нужен CORS), ноль
-   дополнительных затрат. `createApp()` — обычное fetch-приложение, его же запускает
-   `@hono/node-server` для отдельного развёртывания.
-2. **Валидация и OpenAPI из одного источника.** `ApiRouter` регистрирует маршрут, проверяет вход
-   Zod-схемами из `@gym/shared` и строит OpenAPI по тем же схемам. Эти же схемы использует клиент.
-3. **Бизнес-логика — в чистых функциях `@gym/shared/domain`** (следующая тренировка, объём, e1RM,
-   рекорды, периоды). Их покрывают юнит-тесты, а сервисы API и компоненты UI только вызывают их.
-4. **Аналитика считается при чтении** по фактическим подходам завершённых сессий. Кэшированных
-   агрегатов нет, поэтому правка или удаление сразу отражаются в статистике. Объём данных одного
-   пользователя маленький. Если понадобится, материализованные агрегаты добавляются без смены API.
-5. **Цикл тренировок не хранится, а вычисляется:** «следующая после последней _завершённой_ сессии
-   этой программы». Отмена и пропуск цикл не двигают, дни отдыха не важны. Если последнюю выполненную
-   тренировку удалили, цикл начинается с первой. У каждой программы своя позиция, поэтому переключение программ ничего не теряет.
-6. **Надёжное сохранение подходов.** Каждое изменение подхода сначала пишется в
-   `localStorage`-outbox (`apps/web/src/lib/outbox.ts`), затем отправляется по порядку с повторами.
-   Сервер идемпотентен (PUT с клиентским UUID, DELETE без ошибки на отсутствующем), поэтому повторы
-   не создают дублей. Тренировку нельзя завершить, пока очередь не отправлена.
-7. **Авторизация на каждом запросе по `initData`** (HMAC, без собственных сессий и JWT). Нечего
-   хранить и инвалидировать. `telegramId → userId` кэшируется в памяти процесса.
-8. **Локальная разработка без отключения проверки.** `GET /api/v1/dev/init-data` выдаёт initData,
-   _подписанную настоящим токеном бота_, и запрос идёт по обычному пути верификации. Эндпоинт
-   существует только при `ALLOW_DEV_AUTH=true`, а при `NODE_ENV=production` сервер с этим флагом не стартует.
-9. **Тема Telegram.** Цвета — CSS-переменные поверх `--tg-theme-*`, safe area — `--tg-safe-area-inset-*`.
-   SDK — официальный `telegram-web-app.js` с тонкой типизированной обёрткой (`src/lib/telegram.ts`).
-
-## Поток данных тренировки
+## Structure
 
 ```
-[Записать подход] → outbox (localStorage) → PUT /sessions/:id/sets/:uuid → Postgres
-       │                                   ▲ повтор с backoff при обрыве сети
-       └─ UI сразу показывает подход (applyPending: данные сервера + очередь)
+apps/web            Next.js 16 (App Router) — UI; app/api/[[...route]] mounts the API
+packages/api        Hono REST API: routes, services, Telegram auth, Prisma
+packages/shared     Zod schemas, DTO types, domain logic (cycle, metrics, weight, periods)
 ```
 
-## Безопасность
+Dependencies point one way: `web → api → shared`, `web → shared`. The frontend never talks to the database
+and never sees secrets — everything goes through REST.
 
-- `initData` проверяется на сервере: HMAC, срок жизни, дубли ключей, формат `user.id`.
-- Владение проверяется в каждом запросе через цепочку родителей. Чужое — всегда 404.
-- Все входные данные проходят через Zod, тело ограничено 32 КБ, ID в пути — только UUID.
-- Ошибки 500 логируются без заголовков и тел (там initData), клиент получает только код.
-- Секреты только в env. `TELEGRAM_BOT_TOKEN` никогда не попадает в клиентский бандл, так как переменных `NEXT_PUBLIC_*` нет.
-- Webhook бота проверяет `X-Telegram-Bot-Api-Secret-Token` сравнением за постоянное время.
-- Для страниц не выставляется `X-Frame-Options: DENY`, потому что Telegram Web открывает Mini App во фрейме.
+## Key decisions
 
-## Масштабирование (когда понадобится)
+1. **Hono inside Next.js instead of a separate server.** One deployment, one origin (no CORS), no extra cost.
+   `createApp()` is a plain fetch app; `@hono/node-server` runs the same app for a standalone deployment.
+2. **Validation and OpenAPI from one source.** `ApiRouter` registers a route, validates input with Zod schemas
+   from `@gym/shared` and builds the OpenAPI document from the same schemas. The client uses them too.
+3. **Business logic lives in pure functions in `@gym/shared/domain`** (next workout, volume, records, periods),
+   covered by unit tests; API services and UI components only call them.
+4. **Analytics are computed on read** from the recorded sets of completed sessions. There are no cached
+   aggregates, so edits and deletions are reflected immediately. Per-user data is small; materialized
+   aggregates can be added later without changing the API.
+5. **The workout cycle is derived, not stored:** "the workout after the last _completed_ session of this
+   program". Cancelling or skipping does not advance it, rest days do not matter. If the last completed workout
+   was deleted, the cycle restarts from the first one. Each program keeps its own position.
+6. **Reliable set saving.** Every set change is first written to a `localStorage` outbox
+   (`apps/web/src/lib/outbox.ts`) and then sent in order with retries. The server is idempotent (PUT with a client
+   UUID, DELETE succeeds when already gone), so retries cannot create duplicates. A workout cannot be finished
+   while the queue still has unsent changes.
+7. **Authentication on every request with `initData`** (HMAC, no own sessions or JWT): nothing to store or
+   invalidate. `telegramId → userId` is cached in process memory.
+8. **Local development without disabling verification.** `GET /api/v1/dev/init-data` returns initData _signed
+   with the real bot token_, so requests go through the normal verification path. The endpoint exists only with
+   `ALLOW_DEV_AUTH=true`; with `NODE_ENV=production` the server refuses to start with that flag.
+9. **Own colour palette, Telegram light/dark.** Telegram theme colours are often too close to each other, so the
+   UI uses its own tokens (page / card / inset surfaces with clear contrast) and follows Telegram's `colorScheme`;
+   the Telegram header and background are painted to match. Workouts are identified by competition-plate colours
+   (A red, B blue, C yellow, D green, E white). Fonts (Golos Text, Unbounded) are self-hosted at build time.
+   The SDK is the official `telegram-web-app.js` with a thin typed wrapper (`src/lib/telegram.ts`).
 
-- Вынести API: задеплоить `packages/api` отдельно (`pnpm --filter @gym/api start`), указать `CORS_ORIGIN`, во фронте поменять `BASE`.
-- Rate limiting: middleware Hono плюс общий стор (Upstash/Redis) при нескольких инстансах.
-- Агрегаты аналитики: таблица `ExerciseSessionStat`, пересчитываемая в транзакции записи подхода.
-- Мониторинг: структурированные JSON-логи уже есть, достаточно подключить сборщик.
+## Workout data flow
+
+```
+[Record set] → outbox (localStorage) → PUT /sessions/:id/sets/:uuid → Postgres
+       │                                   ▲ retried with backoff when offline
+       └─ the UI shows the set immediately (applyPending: server data + queue)
+```
+
+## Security
+
+- `initData` is verified on the server: HMAC, age, duplicate keys, `user.id` format.
+- Ownership is checked on every request through the parent chain; another user's data always returns 404.
+- All input goes through Zod; bodies are limited to 32 KB; path ids must be UUIDs.
+- 500 errors are logged without headers or bodies (they contain initData); the client only gets a code.
+- Secrets live only in env vars. `TELEGRAM_BOT_TOKEN` never reaches the client bundle (there are no `NEXT_PUBLIC_*` secrets).
+- The bot webhook checks `X-Telegram-Bot-Api-Secret-Token` with a constant-time comparison.
+- Pages do not send `X-Frame-Options: DENY`, because Telegram Web opens Mini Apps in a frame.
+
+## Scaling (when needed)
+
+- Split out the API: deploy `packages/api` on its own (`pnpm --filter @gym/api start`), set `CORS_ORIGIN`, point the client `BASE` at it.
+- Rate limiting: a Hono middleware plus a shared store (Upstash/Redis) once there are several instances.
+- Analytics aggregates: an `ExerciseSessionStat` table updated in the same transaction as set writes.
+- Monitoring: logs are already structured JSON; plug in a collector.

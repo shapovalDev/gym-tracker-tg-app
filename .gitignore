@@ -13,3 +13,5 @@ playwright-report
 test-results
 .DS_Store
 .idea/workspace.xml
+.vercel
+.env*

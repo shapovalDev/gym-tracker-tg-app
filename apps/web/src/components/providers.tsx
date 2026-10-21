@@ -24,7 +24,17 @@ export function Providers({ children }: { children: ReactNode }) {
     initTelegram();
     const app = tg();
     if (app) {
-      const sync = () => (document.documentElement.dataset.tg = app.colorScheme);
+      // Follow Telegram's light/dark choice with our own palette, and paint
+      // Telegram's header/background to match so the app has no seams.
+      const sync = () => {
+        document.documentElement.dataset.theme = app.colorScheme;
+        const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+        if (bg && app.isVersionAtLeast?.('6.1')) {
+          app.setHeaderColor?.(bg);
+          app.setBackgroundColor?.(bg);
+        }
+        if (bg && app.isVersionAtLeast?.('7.10')) app.setBottomBarColor?.(bg);
+      };
       sync();
       app.onEvent?.('themeChanged', sync);
     }

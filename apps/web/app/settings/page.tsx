@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { PageHeader, Section } from '@/components/ui';
-import { useOutbox, flush } from '@/lib/outbox';
+import { ChevronRight } from '@/components/icons';
+import { Button, Card, PageHeader, Section } from '@/components/ui';
+import { flush, useOutbox } from '@/lib/outbox';
 import { tg } from '@/lib/telegram';
 
 export default function SettingsPage() {
@@ -19,57 +20,55 @@ export default function SettingsPage() {
   return (
     <>
       <PageHeader title="Ещё" />
-      <Section title="Библиотека">
-        <div className="divide-y divide-border overflow-hidden rounded-3xl bg-surface">
-          <Row href="/exercises" label="Упражнения" />
-          <Row href="/programs" label="Программы и архив" />
-        </div>
-      </Section>
-      <Section title="Единицы">
-        <div className="flex items-center justify-between rounded-3xl bg-surface px-4 py-4">
-          <span>Вес</span>
-          <span className="text-muted">килограммы</span>
-        </div>
-      </Section>
-      <Section title="Синхронизация">
-        <div className="space-y-2 rounded-3xl bg-surface px-4 py-4 text-sm">
-          <p>
+      <Card className="divide-y divide-line overflow-hidden">
+        <Row href="/exercises" label="Упражнения" hint="Библиотека, техника, архив" />
+        <Row href="/programs" label="Программы" hint="Тренировки и цикл" />
+      </Card>
+
+      <Section title="Сохранение">
+        <Card className="space-y-3 p-4">
+          <p className="text-[15px]">
             {queue.length === 0
               ? 'Все данные сохранены на сервере.'
-              : `${queue.length} изменений ожидают отправки${lastError === 'offline' ? ' (нет сети)' : ''}.`}
+              : `${queue.length} изменений ждут отправки${lastError === 'offline' ? ': нет сети' : ''}.`}
           </p>
           {queue.length > 0 && (
-            <button type="button" className="font-medium text-link" onClick={() => flush()}>
+            <Button size="sm" variant="soft" onClick={() => flush()}>
               Отправить сейчас
-            </button>
+            </Button>
           )}
-        </div>
+        </Card>
       </Section>
+
       <Section title="Как считается статистика">
-        <div className="space-y-2 rounded-3xl bg-surface px-4 py-4 text-sm text-muted">
+        <Card className="space-y-2 p-4 text-[15px]">
           <p>
-            Учитываются только подходы со статусом «выполнен» и хотя бы одним повтором из
-            завершённых тренировок.
+            Учитываются только выполненные подходы, хотя бы с одним повтором, из завершённых
+            тренировок.
           </p>
-          <p>Объём = Σ вес × повторы. e1RM — оценка по формуле Эпли, не реальный максимум.</p>
-          <p>Длительность — общее время от старта до завершения тренировки.</p>
-        </div>
+          <p>Объём — это сумма «вес × повторы».</p>
+          <p>Длительность — время от старта до завершения тренировки. Вес — в килограммах.</p>
+        </Card>
       </Section>
-      <p className="px-1 text-xs text-muted">
+
+      <p className="px-1 text-[13px] text-muted">
         {env.inTelegram
-          ? `Telegram ${env.platform} · Bot API ${env.version}`
+          ? `Telegram ${env.platform}, Bot API ${env.version}`
           : 'Открыто вне Telegram (режим разработки)'}
       </p>
     </>
   );
 }
 
-function Row({ href, label }: { href: string; label: string }) {
+function Row({ href, label, hint }: { href: string; label: string; hint: string }) {
   return (
-    <Link href={href} className="flex h-14 items-center justify-between px-4 font-medium">
-      {label}
-      <span className="text-muted" aria-hidden>
-        ›
+    <Link href={href} className="flex min-h-16 items-center justify-between gap-3 px-4 py-3">
+      <span>
+        <span className="block font-semibold">{label}</span>
+        <span className="block text-[14px] text-muted">{hint}</span>
+      </span>
+      <span className="text-muted">
+        <ChevronRight />
       </span>
     </Link>
   );

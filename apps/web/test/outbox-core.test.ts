@@ -45,6 +45,7 @@ const session: SessionDto = {
       exerciseId: 'e1',
       name: 'Жим',
       muscleGroup: null,
+      description: null,
       position: 0,
       plannedSets: 3,
       targetRepsMin: null,

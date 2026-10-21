@@ -1,80 +1,132 @@
 @import 'tailwindcss';
 
 /*
- * Design tokens. Telegram injects --tg-theme-* variables (light or dark,
- * following the user's Telegram theme); fallbacks cover a regular browser.
+ * Design tokens.
+ * Own palette with clear steps between page, card and inset surfaces (Telegram's
+ * theme colours are often too close to each other and made the UI blend).
+ * Light/dark follows Telegram's colorScheme (data-theme on <html>), or the OS
+ * setting in a plain browser.
+ *
+ * Plate colours (IWF competition plates) identify workouts A/B/C/D/E.
  */
 :root {
-  --c-bg: var(--tg-theme-secondary-bg-color, #f2f2f7);
-  --c-surface: var(--tg-theme-section-bg-color, var(--tg-theme-bg-color, #ffffff));
-  --c-surface-2: color-mix(in srgb, var(--c-text) 6%, var(--c-surface));
-  --c-text: var(--tg-theme-text-color, #0b0b0f);
-  --c-muted: var(--tg-theme-hint-color, #6e6e76);
-  --c-accent: var(--tg-theme-button-color, #2f6bff);
-  --c-on-accent: var(--tg-theme-button-text-color, #ffffff);
-  --c-link: var(--tg-theme-link-color, #2f6bff);
-  --c-danger: var(--tg-theme-destructive-text-color, #e5383b);
-  --c-success: #22a861;
-  --c-warning: #e8a317;
-  --c-border: color-mix(in srgb, var(--c-text) 10%, transparent);
+  --bg: #e9ecf1;
+  --card: #ffffff;
+  --inset: #f2f4f7;
+  --line: #d3d9e1;
+  --ink: #14171c;
+  --muted: #5d6673;
+  --primary: #2347e6;
+  --primary-soft: #e3e9fd;
+  --on-primary: #ffffff;
+  --done: #0c8f47;
+  --done-soft: #ddf3e6;
+  --skip: #9a6c00;
+  --skip-soft: #fbefc8;
+  --danger: #cf2236;
+  --danger-soft: #fbe4e7;
+  --plate-1: #d7263d;
+  --plate-2: #2347e6;
+  --plate-3: #e8b100;
+  --plate-4: #0c8f47;
+  --plate-5: #9aa3af;
   --safe-top: calc(var(--tg-safe-area-inset-top, 0px) + var(--tg-content-safe-area-inset-top, 0px));
   --safe-bottom: max(var(--tg-safe-area-inset-bottom, 0px), env(safe-area-inset-bottom, 0px));
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-tg]) {
-    --c-bg: #0c0d10;
-    --c-surface: #17191e;
-    --c-text: #f3f4f6;
-    --c-muted: #8b8f98;
-    --c-accent: #4f86ff;
-    --c-link: #6d9bff;
-    --c-danger: #ff5a5f;
-    color-scheme: dark;
-  }
-}
-:root[data-tg='dark'] {
+:root[data-theme='dark'] {
+  --bg: #0e1115;
+  --card: #1a1e25;
+  --inset: #252a33;
+  --line: #343b46;
+  --ink: #eef1f5;
+  --muted: #9aa3af;
+  --primary: #5b7cff;
+  --primary-soft: #1f2a52;
+  --done: #34c774;
+  --done-soft: #15301f;
+  --skip: #f0c541;
+  --skip-soft: #3a3110;
+  --danger: #ff5a6c;
+  --danger-soft: #3d1a20;
+  --plate-1: #ff4d5e;
+  --plate-2: #5b7cff;
+  --plate-3: #f0c541;
+  --plate-4: #34c774;
+  --plate-5: #c3c9d2;
   color-scheme: dark;
 }
 
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --bg: #0e1115;
+    --card: #1a1e25;
+    --inset: #252a33;
+    --line: #343b46;
+    --ink: #eef1f5;
+    --muted: #9aa3af;
+    --primary: #5b7cff;
+    --primary-soft: #1f2a52;
+    --done: #34c774;
+    --done-soft: #15301f;
+    --skip: #f0c541;
+    --skip-soft: #3a3110;
+    --danger: #ff5a6c;
+    --danger-soft: #3d1a20;
+    --plate-1: #ff4d5e;
+    --plate-2: #5b7cff;
+    --plate-3: #f0c541;
+    --plate-4: #34c774;
+    --plate-5: #c3c9d2;
+    color-scheme: dark;
+  }
+}
+
 @theme inline {
-  --color-bg: var(--c-bg);
-  --color-surface: var(--c-surface);
-  --color-surface-2: var(--c-surface-2);
-  --color-text: var(--c-text);
-  --color-muted: var(--c-muted);
-  --color-accent: var(--c-accent);
-  --color-on-accent: var(--c-on-accent);
-  --color-link: var(--c-link);
-  --color-danger: var(--c-danger);
-  --color-success: var(--c-success);
-  --color-warning: var(--c-warning);
-  --color-border: var(--c-border);
+  --color-bg: var(--bg);
+  --color-card: var(--card);
+  --color-inset: var(--inset);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-primary: var(--primary);
+  --color-primary-soft: var(--primary-soft);
+  --color-on-primary: var(--on-primary);
+  --color-done: var(--done);
+  --color-done-soft: var(--done-soft);
+  --color-skip: var(--skip);
+  --color-skip-soft: var(--skip-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
   --font-sans:
-    ui-sans-serif, -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto,
-    'Helvetica Neue', Arial, sans-serif;
+    var(--font-body), ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    sans-serif;
+  --font-display: var(--font-display-face), var(--font-body), ui-sans-serif, sans-serif;
 }
 
 html,
 body {
-  background: var(--c-bg);
-  color: var(--c-text);
+  background: var(--bg);
+  color: var(--ink);
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: none;
 }
 
 body {
   font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.4;
   -webkit-font-smoothing: antialiased;
 }
 
+/* Numbers that matter: weights, reps, counts. */
 .num {
+  font-family: var(--font-display);
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 
-/* Hide number spinners; we provide large steppers instead. */
 input[type='number']::-webkit-inner-spin-button,
 input[type='number']::-webkit-outer-spin-button {
   -webkit-appearance: none;
@@ -85,32 +137,22 @@ input[type='number'] {
 }
 
 :focus-visible {
-  outline: 2px solid var(--c-accent);
+  outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .anim-in {
-    animation: anim-in 160ms ease-out;
-  }
   .anim-sheet {
-    animation: anim-sheet 200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    animation: anim-sheet 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .anim-pop {
+    animation: anim-pop 180ms ease-out;
   }
   .press {
-    transition: transform 80ms ease;
+    transition: transform 90ms ease;
   }
   .press:active {
     transform: scale(0.97);
-  }
-}
-@keyframes anim-in {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
   }
 }
 @keyframes anim-sheet {
@@ -118,6 +160,16 @@ input[type='number'] {
     transform: translateY(100%);
   }
   to {
+    transform: none;
+  }
+}
+@keyframes anim-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
     transform: none;
   }
 }

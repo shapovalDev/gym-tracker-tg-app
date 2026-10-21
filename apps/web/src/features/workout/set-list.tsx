@@ -1,7 +1,8 @@
 'use client';
 
 import { formatWeight, type SetDto } from '@gym/shared';
-import { cx } from '@/components/ui';
+import { TrashIcon } from '@/components/icons';
+import { IconButton, cx } from '@/components/ui';
 import { isPendingSet } from '@/lib/outbox-core';
 
 export function SetRow({
@@ -18,14 +19,14 @@ export function SetRow({
   return (
     <li
       className={cx(
-        'flex items-center gap-3 rounded-2xl px-3 py-2',
-        done ? 'bg-success/10' : 'bg-surface-2',
+        'flex items-center gap-3 rounded-2xl border py-1.5 pr-1 pl-3',
+        done ? 'border-done/30 bg-done-soft' : 'border-line bg-inset',
       )}
     >
       <span
         className={cx(
-          'num grid size-8 shrink-0 place-items-center rounded-full text-sm font-bold',
-          done ? 'bg-success text-white' : 'bg-border text-muted',
+          'num grid size-9 shrink-0 place-items-center rounded-full text-[15px] font-semibold',
+          done ? 'bg-done text-white' : 'bg-card text-muted',
         )}
         aria-label={done ? `Подход ${set.setNumber} выполнен` : `Подход ${set.setNumber} пропущен`}
       >
@@ -35,27 +36,24 @@ export function SetRow({
         type="button"
         onClick={onEdit}
         disabled={!onEdit}
-        className="min-w-0 flex-1 text-left"
+        className="min-w-0 flex-1 py-1.5 text-left"
+        aria-label={`Изменить подход ${set.setNumber}`}
       >
-        <span className="num text-[20px] font-bold">
-          {formatWeight(set.weightKg)}
-          <span className="text-sm font-medium text-muted"> кг × </span>
-          {set.reps}
-        </span>
-        <span className="ml-2 text-xs text-muted">
-          {done ? '' : 'пропущен'}
-          {pending ? ' · сохраняется…' : ''}
-        </span>
+        {done ? (
+          <span className="num text-[22px] font-semibold">
+            {formatWeight(set.weightKg)}
+            <span className="font-sans text-[15px] font-medium text-muted"> кг × </span>
+            {set.reps}
+          </span>
+        ) : (
+          <span className="text-[16px] font-medium text-muted">Пропущен</span>
+        )}
+        {pending && <span className="block text-[12px] text-skip">сохраняется…</span>}
       </button>
       {onDelete && (
-        <button
-          type="button"
-          onClick={onDelete}
-          aria-label={`Удалить подход ${set.setNumber}`}
-          className="grid size-10 place-items-center rounded-xl text-muted"
-        >
-          ✕
-        </button>
+        <IconButton label={`Удалить подход ${set.setNumber}`} onClick={onDelete}>
+          <TrashIcon />
+        </IconButton>
       )}
     </li>
   );
@@ -69,9 +67,9 @@ export function PreviousSets({
   date: string;
 }) {
   return (
-    <div className="rounded-2xl bg-surface-2 px-3 py-2">
-      <p className="text-xs font-medium text-muted">Прошлый раз · {date}</p>
-      <p className="num mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[15px] font-semibold">
+    <div className="rounded-2xl border border-line bg-card px-4 py-3">
+      <p className="text-[13px] text-muted">В прошлый раз, {date}</p>
+      <p className="num mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[16px] font-semibold">
         {sets.map((s) => (
           <span
             key={s.setNumber}
@@ -82,5 +80,18 @@ export function PreviousSets({
         ))}
       </p>
     </div>
+  );
+}
+
+/** ●●○○ — recorded vs planned sets. */
+export function SetDots({ done, planned }: { done: number; planned: number }) {
+  const total = Math.max(planned, done);
+  if (total === 0) return null;
+  return (
+    <span className="flex gap-1" aria-label={`${done} из ${planned || done} подходов`}>
+      {Array.from({ length: Math.min(total, 10) }, (_, i) => (
+        <span key={i} className={cx('size-2 rounded-full', i < done ? 'bg-done' : 'bg-line')} />
+      ))}
+    </span>
   );
 }

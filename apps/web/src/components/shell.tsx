@@ -3,11 +3,11 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, type ReactNode } from 'react';
+import { formatClock } from '@/lib/format';
 import { useOutbox } from '@/lib/outbox';
 import { useActiveSession } from '@/lib/queries';
 import { backButton } from '@/lib/telegram';
-import { useToasts } from '@/lib/toast';
-import { formatClock } from '@/lib/format';
+import { dismissToast, useToasts } from '@/lib/toast';
 import { cx } from './ui';
 
 const TABS = [
@@ -23,24 +23,37 @@ const isTabRoot = (p: string) => TABS.some((t) => t.href === p);
 export function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const inWorkout = pathname.startsWith('/workout');
+  const { data: session } = useActiveSession();
+  const showSessionBar = !inWorkout && !!session;
   useTelegramBackButton(!isTabRoot(pathname));
+
+  // Height of everything fixed at the bottom; pages and BottomBar offset by it.
+  useEffect(() => {
+    const nav = inWorkout ? 0 : showSessionBar ? 60 + 56 : 60;
+    document.documentElement.style.setProperty('--nav-h', `${nav}px`);
+  }, [inWorkout, showSessionBar]);
+
   return (
     <div
       className="mx-auto min-h-dvh max-w-lg"
       style={{ paddingTop: 'calc(8px + var(--safe-top))' }}
     >
       <main
-        className="space-y-5 px-4"
-        style={{
-          paddingBottom: inWorkout
-            ? 'calc(24px + var(--safe-bottom))'
-            : 'calc(140px + var(--safe-bottom))',
-        }}
+        className="space-y-6 px-4"
+        style={{ paddingBottom: 'calc(var(--nav-h, 60px) + 104px + var(--safe-bottom))' }}
       >
         {children}
       </main>
-      {!inWorkout && <ActiveSessionBar />}
-      {!inWorkout && <TabBar pathname={pathname} />}
+      {!inWorkout && (
+        <nav
+          aria-label="Основная навигация"
+          className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-card"
+          style={{ paddingBottom: 'var(--safe-bottom)' }}
+        >
+          {session && <ActiveSessionBar name={session.workoutName} startedAt={session.startedAt} />}
+          <TabBar pathname={pathname} />
+        </nav>
+      )}
       <SyncIndicator />
       <Toasts />
     </div>
@@ -49,54 +62,55 @@ export function Shell({ children }: { children: ReactNode }) {
 
 function TabBar({ pathname }: { pathname: string }) {
   return (
-    <nav
-      aria-label="Основная навигация"
-      className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-surface/95 backdrop-blur"
-      style={{ paddingBottom: 'var(--safe-bottom)' }}
-    >
-      <ul className="mx-auto flex max-w-lg">
-        {TABS.map((t) => {
-          const active = t.href === '/' ? pathname === '/' : pathname.startsWith(t.href);
-          return (
-            <li key={t.href} className="flex-1">
-              <Link
-                href={t.href}
-                aria-current={active ? 'page' : undefined}
-                className={cx(
-                  'flex h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium',
-                  active ? 'text-accent' : 'text-muted',
-                )}
-              >
-                <t.icon />
-                {t.label}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
+    <ul className="mx-auto flex max-w-lg">
+      {TABS.map((t) => {
+        const active =
+          t.href === '/'
+            ? pathname === '/'
+            : pathname.startsWith(t.href) ||
+              (t.href === '/programs' && pathname.startsWith('/exercises'));
+        return (
+          <li key={t.href} className="flex-1">
+            <Link
+              href={t.href}
+              aria-current={active ? 'page' : undefined}
+              className={cx(
+                'flex h-[60px] flex-col items-center justify-center gap-0.5 text-[11px] font-semibold',
+                active ? 'text-primary' : 'text-muted',
+              )}
+            >
+              <t.icon />
+              {t.label}
+            </Link>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
-function ActiveSessionBar() {
-  const { data: session } = useActiveSession();
-  const elapsed = useElapsed(session?.startedAt);
-  if (!session) return null;
+function ActiveSessionBar({ name, startedAt }: { name: string | null; startedAt: string }) {
+  const elapsed = useElapsed(startedAt);
   return (
     <Link
       href="/workout"
-      className="press fixed inset-x-3 z-30 mx-auto flex max-w-[calc(32rem-24px)] items-center justify-between rounded-2xl bg-accent px-4 py-3 text-on-accent shadow-lg"
-      style={{ bottom: 'calc(64px + var(--safe-bottom))' }}
+      className="press flex h-14 items-center justify-between gap-3 bg-primary px-4 text-on-primary"
     >
-      <span className="min-w-0">
-        <span className="block text-xs opacity-80">
-          Тренировка идёт · <span className="num">{formatClock(elapsed)}</span>
+      <span className="flex min-w-0 items-center gap-3">
+        <span className="relative flex size-2.5 shrink-0">
+          <span className="absolute inline-flex size-full animate-ping rounded-full bg-white/70 motion-reduce:hidden" />
+          <span className="relative inline-flex size-2.5 rounded-full bg-white" />
         </span>
-        <span className="block truncate font-semibold">
-          {session.workoutName ?? 'Свободная тренировка'}
+        <span className="min-w-0">
+          <span className="block truncate text-[15px] font-semibold">
+            {name ?? 'Свободная тренировка'}
+          </span>
+          <span className="num block text-[12px] opacity-85">идёт {formatClock(elapsed)}</span>
         </span>
       </span>
-      <span className="font-semibold">Продолжить →</span>
+      <span className="shrink-0 rounded-xl bg-white/20 px-3 py-1.5 text-[14px] font-semibold">
+        Вернуться
+      </span>
     </Link>
   );
 }
@@ -117,10 +131,10 @@ function SyncIndicator() {
   return (
     <div
       role="status"
-      className="fixed inset-x-0 z-40 mx-auto w-fit rounded-full bg-warning px-3 py-1 text-xs font-semibold text-black shadow"
+      className="fixed inset-x-0 z-40 mx-auto w-fit rounded-full bg-skip-soft px-3 py-1 text-[13px] font-semibold text-skip shadow"
       style={{ top: 'calc(6px + var(--safe-top))' }}
     >
-      {lastError === 'offline' ? 'Нет сети · ' : 'Сохранение · '}
+      {lastError === 'offline' ? 'Нет сети. ' : 'Сохраняю… '}
       {queue.length} не отправлено
     </div>
   );
@@ -131,22 +145,30 @@ function Toasts() {
   return (
     <div
       aria-live="polite"
-      className="pointer-events-none fixed inset-x-0 top-0 z-[60] mx-auto max-w-lg space-y-2 px-4"
-      style={{ paddingTop: 'calc(36px + var(--safe-top))' }}
+      className="pointer-events-none fixed inset-x-0 z-[60] mx-auto max-w-lg space-y-2 px-4"
+      style={{ bottom: 'calc(var(--nav-h, 60px) + 88px + var(--safe-bottom))' }}
     >
       {toasts.map((t) => (
         <div
           key={t.id}
           className={cx(
-            'anim-in rounded-2xl px-4 py-3 text-sm font-medium shadow-lg',
-            t.tone === 'error'
-              ? 'bg-danger text-white'
-              : t.tone === 'success'
-                ? 'bg-success text-white'
-                : 'bg-text text-surface',
+            'anim-pop pointer-events-auto flex items-center justify-between gap-3 rounded-2xl px-4 py-3 text-[15px] font-medium shadow-lg',
+            t.tone === 'error' ? 'bg-danger text-white' : 'bg-ink text-card',
           )}
         >
-          {t.text}
+          <span>{t.text}</span>
+          {t.action && (
+            <button
+              type="button"
+              className="shrink-0 rounded-lg px-2 py-1 font-semibold text-primary-soft underline-offset-2 hover:underline"
+              onClick={() => {
+                t.action!.onClick();
+                dismissToast(t.id);
+              }}
+            >
+              {t.action.label}
+            </button>
+          )}
         </div>
       ))}
     </div>

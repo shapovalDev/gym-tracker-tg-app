@@ -44,7 +44,7 @@ export default function HistoryPage() {
   return (
     <>
       <PageHeader title="История" />
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" role="group" aria-label="Период">
         {(
           [
             ['all', 'Всё время'],
@@ -83,32 +83,40 @@ export default function HistoryPage() {
         <ErrorState message={errorMessage(error)} onRetry={() => refetch()} />
       ) : items.length === 0 ? (
         <EmptyState
-          icon="📅"
-          title={range === 'all' ? 'Пока нет тренировок' : 'Нет тренировок за период'}
-          text={range === 'all' ? 'Завершённые тренировки появятся здесь.' : undefined}
+          title={range === 'all' ? 'Пока нет тренировок' : 'За этот период тренировок нет'}
+          text={
+            range === 'all' ? 'Здесь появятся завершённые тренировки.' : 'Выберите другой период.'
+          }
         />
       ) : (
-        <ul className="space-y-2">
+        <ul className="space-y-2.5">
           {items.map((s) => (
             <li key={s.id}>
-              <Link href={`/history/${s.id}`} className="press block rounded-3xl bg-surface p-4">
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="truncate font-semibold">
+              <Link
+                href={`/history/${s.id}`}
+                className="press block rounded-[22px] border border-line bg-card p-4"
+              >
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="truncate text-[17px] font-semibold">
                     {s.workoutName ?? 'Свободная тренировка'}
                   </span>
-                  <span className="shrink-0 text-sm text-muted">
+                  <span className="shrink-0 text-[14px] text-muted">
                     {formatDate(s.startedAt)}, {formatTime(s.startedAt)}
                   </span>
                 </div>
-                {s.programName && <p className="text-xs text-muted">{s.programName}</p>}
-                <p className="mt-1 text-sm text-muted">
-                  {formatDuration(s.summary.durationSeconds)} · {s.summary.totalSets}{' '}
-                  {plural(s.summary.totalSets, 'подход', 'подхода', 'подходов')} ·{' '}
-                  {formatVolume(s.summary.volumeKg)}
-                </p>
                 {s.exerciseNames.length > 0 && (
-                  <p className="mt-1 truncate text-sm">{s.exerciseNames.join(' · ')}</p>
+                  <p className="mt-1 line-clamp-2 text-[14px] text-muted">
+                    {s.exerciseNames.join(', ')}
+                  </p>
                 )}
+                <p className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-[14px]">
+                  <span>{formatDuration(s.summary.durationSeconds)}</span>
+                  <span>
+                    {s.summary.totalSets}{' '}
+                    {plural(s.summary.totalSets, 'подход', 'подхода', 'подходов')}
+                  </span>
+                  <span>{formatVolume(s.summary.volumeKg)}</span>
+                </p>
               </Link>
             </li>
           ))}

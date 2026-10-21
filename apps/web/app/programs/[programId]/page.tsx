@@ -5,20 +5,25 @@ import { useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { ChevronRight, DotsIcon, PlusIcon } from '@/components/icons';
 import { moveItem, ReorderButtons } from '@/components/reorder';
 import {
+  ActionSheet,
+  BottomBar,
   Button,
+  Card,
   ConfirmSheet,
   EmptyState,
   ErrorState,
   Field,
+  IconButton,
   PageHeader,
   PageLoader,
+  PlateBadge,
   Section,
   Sheet,
   TextArea,
 } from '@/components/ui';
-import { useStartWorkout } from '@/features/workout/use-start-workout';
 import { errorMessage, http } from '@/lib/api';
 import { plural } from '@/lib/format';
 import { useApiMutation } from '@/lib/mutations';
@@ -29,9 +34,10 @@ export default function ProgramPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const { data: program, isLoading, error, refetch } = useProgram(programId);
-  const { start, pending: starting } = useStartWorkout();
+  const [menu, setMenu] = useState(false);
   const [editing, setEditing] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [ordering, setOrdering] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
 
   const setProgram = (p: ProgramDto) => qc.setQueryData(queryKeys.program(p.id), p);
@@ -79,101 +85,136 @@ export default function ProgramPage() {
           program.archivedAt ? 'В архиве' : program.isActive ? 'Активная программа' : 'Программа'
         }
         right={
-          <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
-            Изменить
-          </Button>
+          <IconButton label="Действия с программой" onClick={() => setMenu(true)}>
+            <DotsIcon />
+          </IconButton>
         }
       />
-      {program.description && <p className="px-1 text-[15px] text-muted">{program.description}</p>}
+      {program.description && (
+        <p className="-mt-3 px-1 text-[15px] text-muted">{program.description}</p>
+      )}
 
       {!program.isActive && !program.archivedAt && (
-        <Button block onClick={() => activate.mutate(undefined)} loading={activate.isPending}>
-          Сделать активной
-        </Button>
+        <Card className="flex items-center justify-between gap-3 p-4">
+          <p className="text-[15px]">Сейчас на главной другая программа.</p>
+          <Button size="sm" onClick={() => activate.mutate(undefined)} loading={activate.isPending}>
+            Сделать активной
+          </Button>
+        </Card>
       )}
 
       <Section
-        title={`Цикл · ${workouts.length} ${plural(workouts.length, 'тренировка', 'тренировки', 'тренировок')}`}
+        title="Тренировки по кругу"
+        hint="После последней снова идёт первая."
+        action={
+          workouts.length > 1 && (
+            <Button
+              size="sm"
+              variant={ordering ? 'primary' : 'secondary'}
+              onClick={() => setOrdering(!ordering)}
+            >
+              {ordering ? 'Готово' : 'Порядок'}
+            </Button>
+          )
+        }
       >
         {workouts.length === 0 ? (
           <EmptyState
-            icon="🗓️"
-            title="Нет тренировок"
-            text="Добавьте тренировки — они будут идти по кругу в заданном порядке."
+            title="Пока нет тренировок"
+            text="Добавьте первую, например «Грудь и трицепс»."
           />
         ) : (
-          <ul className="space-y-2">
-            {workouts.map((w, i) => (
-              <li
-                key={w.id}
-                className="flex items-center gap-1 rounded-3xl bg-surface py-2 pr-2 pl-4"
-              >
-                <Link
-                  href={`/programs/${programId}/workouts/${w.id}`}
-                  className="min-w-0 flex-1 py-1"
-                >
-                  <span className="flex items-center gap-2">
-                    <span className="grid size-7 shrink-0 place-items-center rounded-full bg-surface-2 text-sm font-bold num">
-                      {i + 1}
+          <ul className="space-y-2.5">
+            {workouts.map((w, i) => {
+              const next = program.isActive && program.nextWorkoutId === w.id;
+              const body = (
+                <>
+                  <PlateBadge index={i} />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2">
+                      <span className="truncate text-[17px] font-semibold">{w.name}</span>
+                      {next && (
+                        <span className="shrink-0 rounded-full bg-primary-soft px-2 py-0.5 text-[12px] font-semibold text-primary">
+                          следующая
+                        </span>
+                      )}
                     </span>
-                    <span className="truncate font-semibold">{w.name}</span>
-                    {program.nextWorkoutId === w.id && program.isActive && (
-                      <span className="shrink-0 rounded-full bg-success/15 px-2 py-0.5 text-[11px] font-semibold text-success">
-                        Следующая
+                    <span className="mt-0.5 line-clamp-2 text-[14px] text-muted">
+                      {w.exercises.length
+                        ? w.exercises.map((e) => e.exercise.name).join(', ')
+                        : 'Нет упражнений, нажмите, чтобы добавить'}
+                    </span>
+                  </span>
+                </>
+              );
+              return (
+                <li key={w.id}>
+                  {ordering ? (
+                    <div className="flex items-center gap-3 rounded-[22px] border border-line bg-card py-3 pr-1 pl-3">
+                      {body}
+                      <ReorderButtons
+                        index={i}
+                        count={workouts.length}
+                        label={w.name}
+                        onMove={(f, t) => reorder.mutate(moveItem(workouts, f, t).map((x) => x.id))}
+                      />
+                    </div>
+                  ) : (
+                    <Link
+                      href={`/programs/${programId}/workouts/${w.id}`}
+                      className={`press flex items-center gap-3 rounded-[22px] border bg-card py-3 pr-3 pl-3 ${next ? 'border-primary' : 'border-line'}`}
+                    >
+                      {body}
+                      <span className="text-muted">
+                        <ChevronRight />
                       </span>
-                    )}
-                  </span>
-                  <span className="mt-0.5 block truncate pl-9 text-sm text-muted">
-                    {w.exercises.length
-                      ? w.exercises.map((e) => e.exercise.name).join(' · ')
-                      : 'Нет упражнений'}
-                  </span>
-                </Link>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  aria-label={`Начать «${w.name}»`}
-                  disabled={starting || w.exercises.length === 0}
-                  onClick={() => start(w.id)}
-                >
-                  ▶
-                </Button>
-                <ReorderButtons
-                  index={i}
-                  count={workouts.length}
-                  label={w.name}
-                  onMove={(from, to) =>
-                    reorder.mutate(moveItem(workouts, from, to).map((x) => x.id))
-                  }
-                />
-              </li>
-            ))}
+                    </Link>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
-        <Button block variant="secondary" onClick={() => setAdding(true)}>
-          + Добавить тренировку
+        {workouts.length > 0 && (
+          <p className="px-1 text-[13px] text-muted">
+            {workouts.length} {plural(workouts.length, 'тренировка', 'тренировки', 'тренировок')} в
+            цикле. Откройте тренировку, чтобы изменить упражнения.
+          </p>
+        )}
+      </Section>
+
+      <BottomBar>
+        <Button
+          variant={workouts.length ? 'secondary' : 'primary'}
+          className="flex-1"
+          onClick={() => setAdding(true)}
+        >
+          <PlusIcon /> Добавить тренировку
         </Button>
-      </Section>
+      </BottomBar>
 
-      <Section title="Действия">
-        <div className="divide-y divide-border overflow-hidden rounded-3xl bg-surface">
-          <button
-            type="button"
-            className="block h-14 w-full px-4 text-left font-medium"
-            onClick={() => duplicate.mutate(undefined)}
-          >
-            Дублировать программу
-          </button>
-          <button
-            type="button"
-            className="block h-14 w-full px-4 text-left font-medium text-danger"
-            onClick={() => setArchiveOpen(true)}
-          >
-            {program.archivedAt ? 'Восстановить из архива' : 'Архивировать'}
-          </button>
-        </div>
-      </Section>
-
+      <ActionSheet
+        open={menu}
+        onClose={() => setMenu(false)}
+        title={program.name}
+        actions={[
+          !program.isActive &&
+            !program.archivedAt && {
+              label: 'Сделать активной',
+              hint: 'Будет показываться на главной',
+              onClick: () => activate.mutate(undefined),
+            },
+          { label: 'Изменить название и описание', onClick: () => setEditing(true) },
+          {
+            label: 'Дублировать программу',
+            hint: 'Копия со всеми тренировками и упражнениями',
+            onClick: () => duplicate.mutate(undefined),
+          },
+          program.archivedAt
+            ? { label: 'Вернуть из архива', onClick: () => archive.mutate(undefined) }
+            : { label: 'Убрать в архив', danger: true, onClick: () => setArchiveOpen(true) },
+        ]}
+      />
       <EditProgramSheet
         open={editing}
         onClose={() => setEditing(false)}
@@ -184,20 +225,19 @@ export default function ProgramPage() {
         open={adding}
         onClose={() => setAdding(false)}
         programId={programId}
-        onSaved={setProgram}
-        defaultName={`Тренировка ${workouts.length + 1}`}
+        defaultName={`Тренировка ${String.fromCharCode(65 + workouts.length)}`}
+        onSaved={(p) => {
+          setProgram(p);
+          router.push(`/programs/${programId}/workouts/${p.workouts.at(-1)!.id}`);
+        }}
       />
       <ConfirmSheet
         open={archiveOpen}
         onClose={() => setArchiveOpen(false)}
-        title={program.archivedAt ? 'Восстановить программу?' : 'Архивировать программу?'}
-        text={
-          program.archivedAt
-            ? undefined
-            : 'История тренировок сохранится. Программу можно будет восстановить.'
-        }
-        confirmLabel={program.archivedAt ? 'Восстановить' : 'Архивировать'}
-        danger={!program.archivedAt}
+        title="Убрать программу в архив?"
+        text="История тренировок сохранится. Программу можно вернуть в любой момент."
+        confirmLabel="Убрать в архив"
+        danger
         loading={archive.isPending}
         onConfirm={() => archive.mutate(undefined)}
       />
@@ -276,9 +316,9 @@ function AddWorkoutSheet({
     {
       invalidate: [['programs'], ['home']],
       onSuccess: (p) => {
-        onSaved(p);
         setName('');
         onClose();
+        onSaved(p);
       },
     },
   );
@@ -298,9 +338,10 @@ function AddWorkoutSheet({
           onChange={(e) => setName(e.target.value)}
           maxLength={100}
           autoFocus
+          hint="Например, «Спина и бицепс». Потом откроется список упражнений."
         />
         <Button type="submit" block size="lg" loading={save.isPending}>
-          Добавить
+          Добавить и перейти к упражнениям
         </Button>
       </form>
     </Sheet>

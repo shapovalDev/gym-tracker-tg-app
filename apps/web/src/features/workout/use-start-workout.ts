@@ -19,7 +19,10 @@ export function useStartWorkout() {
     setPending(true);
     const id = crypto.randomUUID();
     try {
-      const session = await http.post<SessionDto>('/sessions', { id, workoutId });
+      const session = await http.post<SessionDto>('/sessions', {
+        id,
+        workoutId: workoutId || null,
+      });
       qc.setQueryData(queryKeys.activeSession, session);
       haptic.tap();
       router.push('/workout');

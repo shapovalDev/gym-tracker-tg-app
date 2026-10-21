@@ -10,16 +10,23 @@ import {
   type ReactNode,
 } from 'react';
 
-const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
-export { cx };
+export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'success';
+/* ---------------------------------------------------------------- buttons */
+
+type Variant = 'primary' | 'secondary' | 'soft' | 'ghost' | 'danger' | 'success';
 const variants: Record<Variant, string> = {
-  primary: 'bg-accent text-on-accent',
-  secondary: 'bg-surface-2 text-text',
-  ghost: 'bg-transparent text-link',
-  danger: 'bg-danger/12 text-danger',
-  success: 'bg-success text-white',
+  primary: 'bg-primary text-on-primary shadow-[0_1px_0_rgba(0,0,0,0.08)]',
+  secondary: 'bg-card text-ink border border-line',
+  soft: 'bg-primary-soft text-primary',
+  ghost: 'bg-transparent text-primary',
+  danger: 'bg-danger-soft text-danger',
+  success: 'bg-done text-white',
+};
+const sizes = {
+  sm: 'h-10 px-3.5 text-[15px] rounded-xl',
+  md: 'h-12 px-4 text-[16px] rounded-2xl',
+  lg: 'h-14 px-5 text-[17px] rounded-2xl',
 };
 
 export function Button({
@@ -33,7 +40,7 @@ export function Button({
   ...rest
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: Variant;
-  size?: 'sm' | 'md' | 'lg';
+  size?: keyof typeof sizes;
   block?: boolean;
   loading?: boolean;
 }) {
@@ -44,10 +51,8 @@ export function Button({
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       className={cx(
-        'press inline-flex items-center justify-center gap-2 rounded-2xl font-semibold select-none disabled:opacity-50',
-        size === 'sm' && 'h-9 px-3 text-sm',
-        size === 'md' && 'h-12 px-4 text-[15px]',
-        size === 'lg' && 'h-14 px-5 text-[17px]',
+        'press inline-flex items-center justify-center gap-2 font-semibold select-none disabled:opacity-45',
+        sizes[size],
         block && 'w-full',
         variants[variant],
         className,
@@ -61,11 +66,13 @@ export function Button({
 export function LinkButton({
   href,
   variant = 'primary',
+  size = 'md',
   className,
   children,
 }: {
   href: string;
   variant?: Variant;
+  size?: keyof typeof sizes;
   className?: string;
   children: ReactNode;
 }) {
@@ -73,7 +80,8 @@ export function LinkButton({
     <Link
       href={href}
       className={cx(
-        'press inline-flex h-12 items-center justify-center gap-2 rounded-2xl px-4 text-[15px] font-semibold',
+        'press inline-flex items-center justify-center gap-2 font-semibold',
+        sizes[size],
         variants[variant],
         className,
       )}
@@ -83,48 +91,60 @@ export function LinkButton({
   );
 }
 
-export function Card({
+export function IconButton({
+  label,
   children,
+  tone = 'muted',
   className,
-  onClick,
-}: {
-  children: ReactNode;
-  className?: string;
-  onClick?: () => void;
+  ...rest
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  label: string;
+  tone?: 'muted' | 'danger' | 'primary';
 }) {
-  const Tag = onClick ? 'button' : 'div';
   return (
-    <Tag
-      {...(onClick ? { type: 'button' as const, onClick } : {})}
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      {...rest}
       className={cx(
-        'block w-full rounded-3xl bg-surface p-4 text-left',
-        onClick && 'press',
+        'press grid size-11 shrink-0 place-items-center rounded-xl disabled:opacity-30',
+        tone === 'danger' ? 'text-danger' : tone === 'primary' ? 'text-primary' : 'text-muted',
         className,
       )}
     >
       {children}
-    </Tag>
+    </button>
+  );
+}
+
+/* ---------------------------------------------------------------- surfaces */
+
+export function Card({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <div className={cx('rounded-[22px] border border-line bg-card', className)}>{children}</div>
   );
 }
 
 export function Section({
   title,
+  hint,
   action,
   children,
 }: {
   title?: string;
+  hint?: string;
   action?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <section className="space-y-2">
+    <section className="space-y-2.5">
       {(title || action) && (
-        <div className="flex items-center justify-between px-1">
-          {title && (
-            <h2 className="text-[13px] font-semibold tracking-wide text-muted uppercase">
-              {title}
-            </h2>
-          )}
+        <div className="flex items-end justify-between gap-3 px-1">
+          <div>
+            {title && <h2 className="text-[17px] font-semibold">{title}</h2>}
+            {hint && <p className="text-[13px] text-muted">{hint}</p>}
+          </div>
           {action}
         </div>
       )}
@@ -132,6 +152,71 @@ export function Section({
     </section>
   );
 }
+
+export function PageHeader({
+  title,
+  subtitle,
+  right,
+}: {
+  title: string;
+  subtitle?: ReactNode;
+  right?: ReactNode;
+}) {
+  return (
+    <header className="flex items-start justify-between gap-2 px-1 pt-3">
+      <div className="min-w-0">
+        {subtitle && <div className="mb-1 truncate text-[14px] text-muted">{subtitle}</div>}
+        <h1 className="font-display text-[26px] leading-[1.1] font-semibold tracking-tight break-words">
+          {title}
+        </h1>
+      </div>
+      {right && <div className="-mr-2 shrink-0">{right}</div>}
+    </header>
+  );
+}
+
+/**
+ * Workout identity: a coloured disc in competition-plate colours
+ * (A red, B blue, C yellow, D green, E white, then repeats).
+ */
+export function PlateBadge({ index, size = 'md' }: { index: number; size?: 'sm' | 'md' | 'lg' }) {
+  const letter = String.fromCharCode(65 + (index % 26));
+  const color = `var(--plate-${(index % 5) + 1})`;
+  const px = size === 'lg' ? 52 : size === 'md' ? 40 : 30;
+  return (
+    <span
+      aria-hidden
+      className="font-display grid shrink-0 place-items-center rounded-full font-bold"
+      style={{
+        width: px,
+        height: px,
+        fontSize: px * 0.42,
+        background: `color-mix(in srgb, ${color} 16%, var(--card))`,
+        color,
+        boxShadow: `inset 0 0 0 ${Math.round(px / 11)}px ${color}`,
+      }}
+    >
+      {letter}
+    </span>
+  );
+}
+
+/** Primary action pinned to the thumb zone (above the tab bar unless `flush`). */
+export function BottomBar({ children, flush }: { children: ReactNode; flush?: boolean }) {
+  return (
+    <div
+      className="fixed inset-x-0 z-30 border-t border-line bg-bg/92 backdrop-blur"
+      style={{
+        bottom: flush ? 0 : 'calc(var(--nav-h, 60px) + var(--safe-bottom))',
+        paddingBottom: flush ? 'var(--safe-bottom)' : 0,
+      }}
+    >
+      <div className="mx-auto flex max-w-lg gap-2 px-4 py-3">{children}</div>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- forms */
 
 export function Field({
   label,
@@ -146,8 +231,8 @@ export function Field({
 }) {
   const id = useId();
   return (
-    <div className={cx('space-y-1', className)}>
-      <label htmlFor={id} className="block px-1 text-[13px] font-medium text-muted">
+    <div className={cx('space-y-1.5', className)}>
+      <label htmlFor={id} className="block px-1 text-[14px] font-medium">
         {label}
       </label>
       <input
@@ -155,10 +240,10 @@ export function Field({
         {...rest}
         aria-invalid={!!error || undefined}
         aria-describedby={error || hint ? `${id}-d` : undefined}
-        className="h-12 w-full rounded-2xl border border-border bg-surface-2 px-4 text-[16px] text-text outline-none placeholder:text-muted/70 focus:border-accent"
+        className="h-12 w-full rounded-2xl border border-line bg-card px-4 text-[16px] text-ink outline-none placeholder:text-muted/70 focus:border-primary"
       />
       {(error || hint) && (
-        <p id={`${id}-d`} className={cx('px-1 text-xs', error ? 'text-danger' : 'text-muted')}>
+        <p id={`${id}-d`} className={cx('px-1 text-[13px]', error ? 'text-danger' : 'text-muted')}>
           {error || hint}
         </p>
       )}
@@ -171,16 +256,18 @@ export function TextArea({
   value,
   onChange,
   placeholder,
+  hint,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+  hint?: string;
 }) {
   const id = useId();
   return (
-    <div className="space-y-1">
-      <label htmlFor={id} className="block px-1 text-[13px] font-medium text-muted">
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="block px-1 text-[14px] font-medium">
         {label}
       </label>
       <textarea
@@ -190,11 +277,43 @@ export function TextArea({
         onChange={(e) => onChange(e.target.value)}
         rows={3}
         maxLength={2000}
-        className="w-full rounded-2xl border border-border bg-surface-2 px-4 py-3 text-[16px] text-text outline-none placeholder:text-muted/70 focus:border-accent"
+        className="w-full rounded-2xl border border-line bg-card px-4 py-3 text-[16px] text-ink outline-none placeholder:text-muted/70 focus:border-primary"
       />
+      {hint && <p className="px-1 text-[13px] text-muted">{hint}</p>}
     </div>
   );
 }
+
+export function Select({
+  label,
+  value,
+  onChange,
+  children,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  children: ReactNode;
+}) {
+  const id = useId();
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="block px-1 text-[14px] font-medium">
+        {label}
+      </label>
+      <select
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-12 w-full rounded-2xl border border-line bg-card px-4 text-[16px] text-ink"
+      >
+        {children}
+      </select>
+    </div>
+  );
+}
+
+/* ---------------------------------------------------------------- states */
 
 export function Spinner({ small }: { small?: boolean }) {
   return (
@@ -219,61 +338,40 @@ export function PageLoader() {
 
 export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <div role="alert" className="space-y-3 rounded-3xl bg-surface p-6 text-center">
-      <p className="text-[15px]">{message}</p>
+    <Card className="space-y-3 p-6 text-center">
+      <p role="alert" className="text-[16px]">
+        {message}
+      </p>
       {onRetry && (
         <Button variant="secondary" size="sm" onClick={onRetry}>
           Повторить
         </Button>
       )}
-    </div>
+    </Card>
   );
 }
 
 export function EmptyState({
-  icon,
   title,
   text,
   action,
 }: {
-  icon: string;
   title: string;
   text?: string;
   action?: ReactNode;
 }) {
   return (
-    <div className="anim-in space-y-3 rounded-3xl bg-surface px-6 py-10 text-center">
-      <div className="text-4xl" aria-hidden>
-        {icon}
-      </div>
-      <h3 className="text-lg font-semibold">{title}</h3>
-      {text && <p className="text-[15px] text-muted">{text}</p>}
-      {action && <div className="pt-2">{action}</div>}
+    <div className="rounded-[22px] border border-dashed border-line px-6 py-9 text-center">
+      <h3 className="text-[17px] font-semibold">{title}</h3>
+      {text && <p className="mx-auto mt-1.5 max-w-xs text-[15px] text-muted">{text}</p>}
+      {action && <div className="mt-5">{action}</div>}
     </div>
   );
 }
 
-export function PageHeader({
-  title,
-  subtitle,
-  right,
-}: {
-  title: string;
-  subtitle?: string;
-  right?: ReactNode;
-}) {
-  return (
-    <header className="flex items-end justify-between gap-3 px-1 pt-2 pb-1">
-      <div className="min-w-0">
-        {subtitle && <p className="truncate text-[13px] font-medium text-muted">{subtitle}</p>}
-        <h1 className="truncate text-[28px] leading-tight font-bold tracking-tight">{title}</h1>
-      </div>
-      {right}
-    </header>
-  );
-}
+/* ---------------------------------------------------------------- overlays */
 
-/** Bottom sheet dialog — reachable with the thumb, closes on backdrop/Escape. */
+/** Bottom sheet — reachable with the thumb, closes on backdrop/Escape. */
 export function Sheet({
   open,
   onClose,
@@ -304,16 +402,16 @@ export function Sheet({
       <button
         type="button"
         aria-label="Закрыть"
-        className="absolute inset-0 bg-black/40"
+        className="absolute inset-0 bg-black/45"
         onClick={onClose}
       />
       <div
         ref={ref}
         tabIndex={-1}
-        className="anim-sheet relative max-h-[88dvh] w-full max-w-lg overflow-y-auto rounded-t-[28px] bg-surface px-4 pt-3 outline-none"
+        className="anim-sheet relative max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-t-[28px] bg-bg px-4 pt-2.5 outline-none"
         style={{ paddingBottom: 'calc(16px + var(--safe-bottom))' }}
       >
-        <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-border" aria-hidden />
+        <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-line" aria-hidden />
         <h2 className="mb-4 text-center text-[17px] font-semibold">{title}</h2>
         {children}
       </div>
@@ -354,12 +452,63 @@ export function ConfirmSheet({
           {confirmLabel}
         </Button>
         <Button block size="lg" variant="secondary" onClick={onClose}>
-          Отмена
+          Не сейчас
         </Button>
       </div>
     </Sheet>
   );
 }
+
+export interface SheetAction {
+  label: string;
+  onClick: () => void;
+  danger?: boolean;
+  hint?: string;
+}
+
+/** A list of secondary actions behind a "⋯" button. */
+export function ActionSheet({
+  open,
+  onClose,
+  title,
+  actions,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  actions: (SheetAction | false | null | undefined)[];
+}) {
+  return (
+    <Sheet open={open} onClose={onClose} title={title}>
+      <Card className="divide-y divide-line overflow-hidden">
+        {actions.filter(Boolean).map((a) => {
+          const action = a as SheetAction;
+          return (
+            <button
+              key={action.label}
+              type="button"
+              onClick={() => {
+                onClose();
+                action.onClick();
+              }}
+              className={cx(
+                'block min-h-14 w-full px-4 py-3 text-left text-[16px] font-medium',
+                action.danger && 'text-danger',
+              )}
+            >
+              {action.label}
+              {action.hint && (
+                <span className="block text-[13px] font-normal text-muted">{action.hint}</span>
+              )}
+            </button>
+          );
+        })}
+      </Card>
+    </Sheet>
+  );
+}
+
+/* ---------------------------------------------------------------- controls */
 
 export function Segmented<T extends string>({
   value,
@@ -373,7 +522,11 @@ export function Segmented<T extends string>({
   label: string;
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className="flex rounded-2xl bg-surface-2 p-1">
+    <div
+      role="radiogroup"
+      aria-label={label}
+      className="flex rounded-2xl border border-line bg-inset p-1"
+    >
       {options.map((o) => (
         <button
           key={o.value}
@@ -382,8 +535,10 @@ export function Segmented<T extends string>({
           aria-checked={value === o.value}
           onClick={() => onChange(o.value)}
           className={cx(
-            'h-9 flex-1 rounded-xl text-sm font-semibold transition-colors',
-            value === o.value ? 'bg-surface text-text shadow-sm' : 'text-muted',
+            'h-10 flex-1 rounded-xl text-[15px] font-semibold transition-colors',
+            value === o.value
+              ? 'bg-card text-ink shadow-[0_1px_2px_rgba(0,0,0,0.12)]'
+              : 'text-muted',
           )}
         >
           {o.label}
@@ -408,8 +563,8 @@ export function Chip({
       onClick={onClick}
       aria-pressed={active}
       className={cx(
-        'press h-9 shrink-0 rounded-full px-4 text-sm font-medium whitespace-nowrap',
-        active ? 'bg-accent text-on-accent' : 'bg-surface text-text',
+        'press h-10 shrink-0 rounded-full border px-4 text-[15px] font-medium whitespace-nowrap',
+        active ? 'border-primary bg-primary text-on-primary' : 'border-line bg-card text-ink',
       )}
     >
       {children}
@@ -419,25 +574,23 @@ export function Chip({
 
 export function Stat({ label, value, sub }: { label: string; value: ReactNode; sub?: ReactNode }) {
   return (
-    <div className="rounded-3xl bg-surface p-4">
+    <Card className="p-4">
       <div className="text-[13px] text-muted">{label}</div>
-      <div className="num mt-1 text-2xl font-bold">{value}</div>
-      {sub && <div className="mt-0.5 text-xs text-muted">{sub}</div>}
-    </div>
+      <div className="num mt-1 text-[24px] leading-tight font-semibold">{value}</div>
+      {sub && <div className="mt-1 text-[13px] text-muted">{sub}</div>}
+    </Card>
   );
 }
 
 export function Change({ pct }: { pct: number | null }) {
-  if (pct === null) return <span className="text-muted">—</span>;
+  if (pct === null) return <span className="text-muted">нет данных для сравнения</span>;
   const up = pct > 0;
   return (
     <span
-      className={cx(
-        'num font-semibold',
-        pct === 0 ? 'text-muted' : up ? 'text-success' : 'text-danger',
-      )}
+      className={cx('font-semibold', pct === 0 ? 'text-muted' : up ? 'text-done' : 'text-danger')}
     >
-      {up ? '↑' : pct < 0 ? '↓' : ''} {Math.abs(pct)}%
+      {up ? '+' : pct < 0 ? '−' : ''}
+      {Math.abs(pct)}% к прошлому периоду
     </span>
   );
 }

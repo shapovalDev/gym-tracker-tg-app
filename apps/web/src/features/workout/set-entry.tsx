@@ -35,12 +35,12 @@ function Stepper({
   };
   return (
     <div className="min-w-0 flex-1">
-      <label htmlFor={id} className="mb-1 block text-center text-[13px] font-medium text-muted">
+      <label htmlFor={id} className="mb-1.5 block text-center text-[14px] font-medium text-muted">
         {label}
       </label>
       <div
         className={cx(
-          'flex items-center rounded-2xl bg-surface-2',
+          'flex items-center rounded-2xl border border-line bg-inset',
           invalid && 'ring-2 ring-danger',
         )}
       >
@@ -62,7 +62,7 @@ function Stepper({
             enterKeyHint="done"
             autoComplete="off"
             placeholder="0"
-            className="num w-full min-w-0 bg-transparent text-center text-[28px] font-bold outline-none"
+            className="num w-full min-w-0 bg-transparent text-center text-[28px] font-semibold outline-none"
           />
         </div>
         <span className="sr-only">{unit}</span>
@@ -123,8 +123,8 @@ export function SetEntry({
   };
 
   return (
-    <div className="space-y-3 rounded-3xl bg-surface p-4">
-      <p className="text-center text-sm font-semibold">Подход {setNumber}</p>
+    <div className="space-y-3 rounded-[22px] border border-line bg-card p-4">
+      <p className="text-center text-[15px] font-semibold">Подход {setNumber}</p>
       <div className="flex gap-3">
         <Stepper
           label="Вес, кг"
@@ -146,7 +146,7 @@ export function SetEntry({
         />
       </div>
       {touched && (weightError || repsError) && (
-        <p role="alert" className="text-center text-sm text-danger">
+        <p role="alert" className="text-center text-[14px] text-danger">
           {weightError ?? repsError}
         </p>
       )}

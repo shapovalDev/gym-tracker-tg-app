@@ -1,6 +1,9 @@
 'use client';
 
-/** Up/down controls: more reliable than drag-and-drop with sweaty thumbs. */
+import { ArrowDown, ArrowUp } from './icons';
+import { IconButton } from './ui';
+
+/** Up/down controls, shown only in "change order" mode. */
 export function ReorderButtons({
   index,
   count,
@@ -13,25 +16,21 @@ export function ReorderButtons({
   label: string;
 }) {
   return (
-    <div className="flex flex-col">
-      <button
-        type="button"
-        aria-label={`Переместить «${label}» выше`}
+    <div className="flex shrink-0">
+      <IconButton
+        label={`Переместить «${label}» выше`}
         disabled={index === 0}
         onClick={() => onMove(index, index - 1)}
-        className="grid size-9 place-items-center rounded-xl text-muted disabled:opacity-25"
       >
-        ▲
-      </button>
-      <button
-        type="button"
-        aria-label={`Переместить «${label}» ниже`}
+        <ArrowUp />
+      </IconButton>
+      <IconButton
+        label={`Переместить «${label}» ниже`}
         disabled={index === count - 1}
         onClick={() => onMove(index, index + 1)}
-        className="grid size-9 place-items-center rounded-xl text-muted disabled:opacity-25"
       >
-        ▼
-      </button>
+        <ArrowDown />
+      </IconButton>
     </div>
   );
 }

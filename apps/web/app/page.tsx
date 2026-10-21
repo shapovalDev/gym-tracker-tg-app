@@ -1,28 +1,35 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { PlayIcon } from '@/components/icons';
 import {
   Button,
   Card,
-  Change,
   EmptyState,
   ErrorState,
   LinkButton,
   PageHeader,
   PageLoader,
+  PlateBadge,
   Section,
-  Stat,
 } from '@/components/ui';
+import { WorkoutChooser } from '@/features/workout/workout-chooser';
 import { useStartWorkout } from '@/features/workout/use-start-workout';
 import { errorMessage } from '@/lib/api';
-import { formatDate, formatDuration, formatVolume, kg, plural } from '@/lib/format';
+import { formatDate, formatDuration, formatVolume, plural } from '@/lib/format';
 import { useHome } from '@/lib/queries';
 import { firstName } from '@/lib/telegram';
-import { useEffect, useState } from 'react';
+
+const today = () =>
+  new Intl.DateTimeFormat('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }).format(
+    new Date(),
+  );
 
 export default function HomePage() {
   const { data, isLoading, error, refetch } = useHome();
   const { start, pending } = useStartWorkout();
+  const [choosing, setChoosing] = useState(false);
   const [name, setName] = useState<string>();
   useEffect(() => setName(firstName()), []);
 
@@ -31,142 +38,141 @@ export default function HomePage() {
 
   return (
     <>
-      <PageHeader
-        title={name ? `Привет, ${name}` : 'Тренировки'}
-        subtitle={new Intl.DateTimeFormat('ru-RU', {
-          weekday: 'long',
-          day: 'numeric',
-          month: 'long',
-        }).format(new Date())}
-      />
+      <PageHeader title={name ? `Привет, ${name}` : 'Тренировки'} subtitle={today()} />
 
       {data.activeSession ? (
-        <Card className="space-y-3 bg-accent text-on-accent">
+        <Card className="space-y-4 border-primary p-5">
           <div>
-            <p className="text-sm opacity-80">Незавершённая тренировка</p>
-            <p className="text-xl font-bold">
+            <p className="text-[14px] font-medium text-primary">Тренировка не завершена</p>
+            <p className="mt-1 text-[22px] leading-tight font-semibold">
               {data.activeSession.workoutName ?? 'Свободная тренировка'}
             </p>
           </div>
-          <LinkButton
-            href="/workout"
-            variant="secondary"
-            className="w-full !bg-white/20 !text-on-accent"
-          >
-            Продолжить
+          <LinkButton href="/workout" size="lg" className="w-full">
+            Продолжить тренировку
           </LinkButton>
         </Card>
       ) : !data.activeProgram ? (
         <EmptyState
-          icon="🏋️"
-          title="Создайте первую программу"
-          text="Программа — это цикл тренировок (например, A → B → C → D), который повторяется по кругу."
+          title="Начните с программы"
+          text="Программа — это тренировки, которые идут по кругу: A, B, C… и снова A. Создайте её и добавьте упражнения."
           action={<LinkButton href="/programs/new">Создать программу</LinkButton>}
         />
-      ) : (
-        <Card className="space-y-4">
-          <div>
-            <p className="text-[13px] font-medium text-muted">{data.activeProgram.name}</p>
-            {data.nextWorkout ? (
-              <>
-                <p className="text-[13px] text-muted">Следующая тренировка</p>
-                <p className="mt-1 text-2xl font-bold">{data.nextWorkout.name}</p>
-                <p className="text-sm text-muted">
-                  {data.nextWorkout.exerciseCount}{' '}
-                  {plural(data.nextWorkout.exerciseCount, 'упражнение', 'упражнения', 'упражнений')}
-                </p>
-              </>
+      ) : data.nextWorkout ? (
+        <Card className="overflow-hidden">
+          <div className="space-y-4 p-5">
+            <div className="flex items-center gap-3">
+              <PlateBadge index={data.nextWorkout.position} size="lg" />
+              <div className="min-w-0">
+                <p className="text-[14px] text-muted">Сегодня по программе</p>
+                <p className="text-[22px] leading-tight font-semibold">{data.nextWorkout.name}</p>
+              </div>
+            </div>
+            {data.nextWorkout.exerciseNames.length > 0 ? (
+              <ol className="space-y-1.5 text-[15px]">
+                {data.nextWorkout.exerciseNames.map((n, i) => (
+                  <li key={i} className="flex gap-2.5">
+                    <span className="num w-5 shrink-0 text-right text-muted">{i + 1}</span>
+                    <span>{n}</span>
+                  </li>
+                ))}
+              </ol>
             ) : (
-              <p className="mt-1 text-lg font-semibold">В программе пока нет тренировок</p>
+              <p className="text-[15px] text-muted">В этой тренировке пока нет упражнений.</p>
             )}
           </div>
-          {data.nextWorkout ? (
-            <div className="space-y-2">
+          <div className="space-y-2 border-t border-line bg-inset p-4">
+            {data.nextWorkout.exerciseCount > 0 ? (
               <Button block size="lg" loading={pending} onClick={() => start(data.nextWorkout!.id)}>
-                Начать тренировку
+                <PlayIcon /> Начать тренировку
               </Button>
-              <Link
-                href={`/programs/${data.activeProgram.id}`}
-                className="block py-1 text-center text-sm font-medium text-link"
-              >
-                Выбрать другую тренировку
-              </Link>
-            </div>
-          ) : (
-            <LinkButton href={`/programs/${data.activeProgram.id}`} className="w-full">
-              Добавить тренировки
-            </LinkButton>
-          )}
+            ) : (
+              <LinkButton href={`/programs/${data.activeProgram.id}`} size="lg" className="w-full">
+                Добавить упражнения
+              </LinkButton>
+            )}
+            <Button block variant="ghost" onClick={() => setChoosing(true)}>
+              Выбрать другую
+            </Button>
+          </div>
         </Card>
+      ) : (
+        <EmptyState
+          title="В программе нет тренировок"
+          text={`Добавьте тренировки в «${data.activeProgram.name}».`}
+          action={
+            <LinkButton href={`/programs/${data.activeProgram.id}`}>Открыть программу</LinkButton>
+          }
+        />
       )}
 
       <div className="grid grid-cols-2 gap-3">
-        <Stat
-          label="За 7 дней"
-          value={data.completedLast7Days}
-          sub={plural(data.completedLast7Days, 'тренировка', 'тренировки', 'тренировок')}
-        />
-        <Stat
-          label="За 30 дней"
-          value={data.completedLast30Days}
-          sub={plural(data.completedLast30Days, 'тренировка', 'тренировки', 'тренировок')}
-        />
+        <Card className="p-4">
+          <div className="num text-[30px] leading-none font-semibold">
+            {data.completedLast7Days}
+          </div>
+          <div className="mt-1.5 text-[14px] text-muted">
+            {plural(data.completedLast7Days, 'тренировка', 'тренировки', 'тренировок')} за неделю
+          </div>
+        </Card>
+        <Card className="p-4">
+          <div className="num text-[30px] leading-none font-semibold">
+            {data.completedLast30Days}
+          </div>
+          <div className="mt-1.5 text-[14px] text-muted">за 30 дней</div>
+        </Card>
       </div>
 
       {data.lastSession && (
-        <Section title="Последняя тренировка">
+        <Section title="Прошлая тренировка">
           <Link
             href={`/history/${data.lastSession.id}`}
-            className="press block rounded-3xl bg-surface p-4"
+            className="press block rounded-[22px] border border-line bg-card p-4"
           >
-            <div className="flex items-baseline justify-between">
-              <span className="font-semibold">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="truncate font-semibold">
                 {data.lastSession.workoutName ?? 'Свободная тренировка'}
               </span>
-              <span className="text-sm text-muted">{formatDate(data.lastSession.startedAt)}</span>
+              <span className="shrink-0 text-[14px] text-muted">
+                {formatDate(data.lastSession.startedAt)}
+              </span>
             </div>
-            <p className="mt-1 text-sm text-muted">
-              {formatDuration(data.lastSession.summary.durationSeconds)} ·{' '}
-              {data.lastSession.summary.totalSets}{' '}
-              {plural(data.lastSession.summary.totalSets, 'подход', 'подхода', 'подходов')} ·{' '}
-              {formatVolume(data.lastSession.summary.volumeKg)}
-            </p>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-[14px]">
+              <Metric
+                value={formatDuration(data.lastSession.summary.durationSeconds)}
+                label="время"
+              />
+              <Metric
+                value={String(data.lastSession.summary.totalSets)}
+                label={plural(data.lastSession.summary.totalSets, 'подход', 'подхода', 'подходов')}
+              />
+              <Metric value={formatVolume(data.lastSession.summary.volumeKg)} label="объём" />
+            </div>
           </Link>
         </Section>
       )}
 
-      {data.highlights.length > 0 && (
-        <Section
-          title="Прогресс"
-          action={
-            <Link href="/progress" className="text-sm font-medium text-link">
-              Все
-            </Link>
-          }
-        >
-          <div className="divide-y divide-border overflow-hidden rounded-3xl bg-surface">
-            {data.highlights.map((h) => (
-              <Link
-                key={h.exerciseId}
-                href={`/progress?exercise=${h.exerciseId}`}
-                className="flex items-center justify-between gap-3 px-4 py-3"
-              >
-                <span className="min-w-0">
-                  <span className="block truncate font-medium">{h.name}</span>
-                  <span className="text-xs text-muted">
-                    {formatDate(h.lastDate)} · макс. {kg(h.lastMaxWeightKg)}
-                    {h.lastBestE1rmKg !== null && ` · e1RM ≈ ${kg(h.lastBestE1rmKg)}`}
-                  </span>
-                </span>
-                <Change pct={h.changeE1rmPct} />
-              </Link>
-            ))}
-          </div>
-          <p className="px-1 text-xs text-muted">
-            Изменение расчётного 1ПМ (e1RM) относительно предыдущей тренировки.
-          </p>
-        </Section>
+      {data.activeProgram && (
+        <WorkoutChooser
+          programId={data.activeProgram.id}
+          open={choosing}
+          onClose={() => setChoosing(false)}
+          starting={pending}
+          onStart={(id) => {
+            setChoosing(false);
+            void start(id);
+          }}
+        />
       )}
     </>
+  );
+}
+
+function Metric({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="rounded-xl bg-inset px-3 py-2">
+      <div className="num text-[16px] font-semibold">{value}</div>
+      <div className="text-[12px] text-muted">{label}</div>
+    </div>
   );
 }

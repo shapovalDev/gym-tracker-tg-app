@@ -22,6 +22,7 @@ interface TelegramWebApp {
   disableClosingConfirmation?: () => void;
   setHeaderColor?: (color: string) => void;
   setBackgroundColor?: (color: string) => void;
+  setBottomBarColor?: (color: string) => void;
   isVersionAtLeast?: (v: string) => boolean;
   onEvent?: (event: string, cb: () => void) => void;
   BackButton?: TgButton;

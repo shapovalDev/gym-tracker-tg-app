@@ -19,7 +19,7 @@ export interface ExerciseDto {
 export interface WorkoutExerciseDto {
   id: string;
   exerciseId: string;
-  exercise: Pick<ExerciseDto, 'id' | 'name' | 'muscleGroup' | 'archivedAt'>;
+  exercise: Pick<ExerciseDto, 'id' | 'name' | 'muscleGroup' | 'description' | 'archivedAt'>;
   position: number;
   plannedSets: number | null;
   targetRepsMin: number | null;
@@ -72,6 +72,8 @@ export interface SessionExerciseDto {
   exerciseId: string;
   name: string;
   muscleGroup: MuscleGroup | null;
+  /** Technique notes from the exercise library (current value). */
+  description: string | null;
   position: number;
   plannedSets: number | null;
   targetRepsMin: number | null;
@@ -121,7 +123,13 @@ export interface ExerciseHighlightDto {
 
 export interface HomeDto {
   activeProgram: { id: string; name: string; workoutCount: number } | null;
-  nextWorkout: { id: string; name: string; position: number; exerciseCount: number } | null;
+  nextWorkout: {
+    id: string;
+    name: string;
+    position: number;
+    exerciseCount: number;
+    exerciseNames: string[];
+  } | null;
   activeSession: { id: string; workoutName: string | null; startedAt: string } | null;
   lastSession: SessionListItemDto | null;
   completedLast7Days: number;

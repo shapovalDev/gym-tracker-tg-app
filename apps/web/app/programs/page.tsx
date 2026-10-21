@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { ChevronRight, PlusIcon } from '@/components/icons';
 import {
+  BottomBar,
   EmptyState,
   ErrorState,
   LinkButton,
@@ -24,13 +26,16 @@ export default function ProgramsPage() {
       <PageHeader
         title="Программы"
         right={
-          <Link href="/exercises" className="pb-1 text-[15px] font-medium text-link">
+          <Link
+            href="/exercises"
+            className="press mt-1 inline-flex h-10 items-center rounded-xl border border-line bg-card px-3 text-[15px] font-semibold"
+          >
             Упражнения
           </Link>
         }
       />
       <Segmented
-        label="Фильтр программ"
+        label="Какие программы показать"
         value={tab}
         onChange={setTab}
         options={[
@@ -45,41 +50,51 @@ export default function ProgramsPage() {
       ) : items.length === 0 ? (
         tab === 'active' ? (
           <EmptyState
-            icon="📋"
             title="Программ пока нет"
-            text="Создайте программу и добавьте в неё тренировки."
+            text="Создайте программу, добавьте в неё тренировки и упражнения."
             action={<LinkButton href="/programs/new">Создать программу</LinkButton>}
           />
         ) : (
-          <EmptyState icon="🗄️" title="Архив пуст" />
+          <EmptyState
+            title="Архив пуст"
+            text="Сюда попадают программы, которые вы убрали из списка. История по ним сохраняется."
+          />
         )
       ) : (
         <ul className="space-y-3">
           {items.map((p) => (
             <li key={p.id}>
-              <Link href={`/programs/${p.id}`} className="press block rounded-3xl bg-surface p-4">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate text-lg font-semibold">{p.name}</span>
+              <Link
+                href={`/programs/${p.id}`}
+                className={`press flex items-center gap-3 rounded-[22px] border bg-card p-4 ${p.isActive ? 'border-primary' : 'border-line'}`}
+              >
+                <span className="min-w-0 flex-1">
                   {p.isActive && (
-                    <span className="rounded-full bg-accent/15 px-2.5 py-1 text-xs font-semibold text-accent">
-                      Активна
+                    <span className="mb-1 block text-[13px] font-semibold text-primary">
+                      Активная
                     </span>
                   )}
-                </div>
-                <p className="mt-1 text-sm text-muted">
-                  {p.workoutCount}{' '}
-                  {plural(p.workoutCount, 'тренировка', 'тренировки', 'тренировок')}
-                  {p.description ? ` · ${p.description}` : ''}
-                </p>
+                  <span className="block truncate text-[18px] font-semibold">{p.name}</span>
+                  <span className="block truncate text-[14px] text-muted">
+                    {p.workoutCount}{' '}
+                    {plural(p.workoutCount, 'тренировка', 'тренировки', 'тренировок')}
+                    {p.description ? `. ${p.description}` : ''}
+                  </span>
+                </span>
+                <span className="text-muted">
+                  <ChevronRight />
+                </span>
               </Link>
             </li>
           ))}
         </ul>
       )}
       {tab === 'active' && items.length > 0 && (
-        <LinkButton href="/programs/new" variant="secondary" className="w-full">
-          + Новая программа
-        </LinkButton>
+        <BottomBar>
+          <LinkButton href="/programs/new" variant="secondary" className="flex-1">
+            <PlusIcon /> Новая программа
+          </LinkButton>
+        </BottomBar>
       )}
     </>
   );

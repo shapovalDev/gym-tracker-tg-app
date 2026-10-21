@@ -1,58 +1,58 @@
-# База данных
+# Database
 
-PostgreSQL (локально — Docker, в проде — Supabase). ORM — Prisma 7 (`packages/api/prisma/schema.prisma`),
-драйвер `@prisma/adapter-pg`.
+PostgreSQL (Docker locally, Supabase in production). ORM: Prisma 7 (`packages/api/prisma/schema.prisma`)
+with the `@prisma/adapter-pg` driver.
 
-## Модель
+## Model
 
 ```
-User ─┬─ Exercise                     (личная библиотека)
-      ├─ TrainingProgram ── ProgramWorkout ── WorkoutExercise ──► Exercise     ← ПЛАН
-      └─ WorkoutSession ── SessionExercise ── ExerciseSet                      ← ФАКТ
-                 │                 └──► Exercise (exerciseId — стабильная связь для аналитики)
-                 └──► TrainingProgram / ProgramWorkout (SET NULL при удалении)
+User ─┬─ Exercise                     (personal library)
+      ├─ TrainingProgram ── ProgramWorkout ── WorkoutExercise ──► Exercise     ← PLAN
+      └─ WorkoutSession ── SessionExercise ── ExerciseSet                      ← ACTUAL
+                 │                 └──► Exercise (exerciseId — stable link used by analytics)
+                 └──► TrainingProgram / ProgramWorkout (SET NULL on delete)
 ```
 
-**План и факт разделены.** При старте тренировки упражнения плана копируются в `SessionExercise`
-вместе со снимками (`exerciseNameSnapshot`, плановые подходы/повторы). Поэтому редактирование,
-переупорядочивание или удаление программы не меняет историю.
+**Plan and history are separate.** When a workout starts, its planned exercises are copied into
+`SessionExercise` together with snapshots (`exerciseNameSnapshot`, planned sets/reps, notes). Editing,
+reordering or deleting the program therefore never changes history.
 
-## Правила целостности
+## Integrity rules
 
-| Правило                                                          | Где обеспечено                                                                                                        |
-| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Все данные принадлежат пользователю                              | `userId` у корневых сущностей; вложенные проверяются через цепочку родителей в каждом запросе (`services/common.ts`)  |
-| Одна активная программа на пользователя                          | частичный уникальный индекс `TrainingProgram_one_active_per_user`                                                     |
-| Одна незавершённая сессия на пользователя                        | частичный уникальный индекс `WorkoutSession_one_in_progress_per_user`                                                 |
-| Порядок тренировок/упражнений уникален и плотный (0..n-1)        | `UNIQUE(programId, position)`, `UNIQUE(workoutId, position)`; переупорядочивание в транзакции в 2 шага (`applyOrder`) |
-| Вес 0–1000 кг, `NUMERIC(6,2)`                                    | Zod + `CHECK`                                                                                                         |
-| Повторы 0–1000, у выполненного подхода ≥ 1                       | Zod + `CHECK ExerciseSet_completed_needs_reps`                                                                        |
-| Удаление упражнения из библиотеки невозможно, если оно в истории | `ON DELETE RESTRICT`; вместо удаления — архив (`archivedAt`)                                                          |
-| Удаление тренировки плана не удаляет сессии                      | `ON DELETE SET NULL` + снимок названия                                                                                |
-| Удаление сессии удаляет её подходы                               | `ON DELETE CASCADE` (статистика считается на лету и сразу обновляется)                                                |
+| Rule                                                 | Enforced by                                                                                                                |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| All data belongs to a user                           | `userId` on root entities; nested entities are checked through the parent chain on every request (`services/common.ts`)    |
+| At most one active program per user                  | partial unique index `TrainingProgram_one_active_per_user`                                                                 |
+| At most one unfinished session per user              | partial unique index `WorkoutSession_one_in_progress_per_user`                                                             |
+| Workout/exercise order is unique and dense (0..n-1)  | `UNIQUE(programId, position)`, `UNIQUE(workoutId, position)`; reordering runs in a transaction in two steps (`applyOrder`) |
+| Weight 0–1000 kg, `NUMERIC(6,2)`                     | Zod + `CHECK`                                                                                                              |
+| Reps 0–1000, a completed set has ≥ 1                 | Zod + `CHECK ExerciseSet_completed_needs_reps`                                                                             |
+| A library exercise used in history cannot be deleted | `ON DELETE RESTRICT`; archive (`archivedAt`) instead                                                                       |
+| Deleting a planned workout keeps its sessions        | `ON DELETE SET NULL` + name snapshot                                                                                       |
+| Deleting a session deletes its sets                  | `ON DELETE CASCADE` (statistics are computed on read, so they update immediately)                                          |
 
-**Округление веса:** до 0,01 кг, половина — от нуля (`roundWeightKg`). В расчётах объёма вес переводится в
-целые сотые килограмма, чтобы суммы были точными.
+**Weight rounding:** to 0.01 kg, half away from zero (`roundWeightKg`). Volume sums are computed in integer
+hundredths of a kilogram so they are exact.
 
-**Единицы:** храним килограммы (`weightKg`). Для поддержки фунтов достаточно добавить настройку отображения
-и конвертацию на клиенте — схема не меняется.
+**Units:** stored in kilograms (`weightKg`). Supporting pounds only needs a display setting and client-side
+conversion — the schema does not change.
 
-## Индексы
+## Indexes
 
-- `WorkoutSession(userId, status, startedAt DESC)` — история, активная сессия, счётчики.
-- `WorkoutSession(programId, status, completedAt DESC)` — расчёт следующей тренировки цикла.
-- `SessionExercise(exerciseId)`, `ExerciseSet(sessionExerciseId, setNumber)` — аналитика и «прошлый раз».
-- `Exercise(userId, archivedAt)`, `TrainingProgram(userId, archivedAt)` — списки.
+- `WorkoutSession(userId, status, startedAt DESC)` — history, active session, counters.
+- `WorkoutSession(programId, status, completedAt DESC)` — next workout of the cycle.
+- `SessionExercise(exerciseId)`, `ExerciseSet(sessionExerciseId, setNumber)` — analytics and "last time".
+- `Exercise(userId, archivedAt)`, `TrainingProgram(userId, archivedAt)` — lists.
 
-## Миграции
+## Migrations
 
 ```bash
-pnpm db:migrate              # dev: создать/применить миграцию (prisma migrate dev)
-pnpm db:deploy               # прод/CI: применить существующие миграции (prisma migrate deploy)
+pnpm db:migrate              # dev: create/apply a migration (prisma migrate dev)
+pnpm db:deploy               # prod/CI: apply existing migrations (prisma migrate deploy)
 pnpm --filter @gym/api db:studio
 ```
 
-Миграции используют `DIRECT_URL` (прямое подключение), приложение — `DATABASE_URL` (на Supabase — пулер).
-Частичные индексы и `CHECK` дописаны в SQL миграции вручную: Prisma их не описывает.
-При изменении схемы создавайте миграцию через `prisma migrate dev --create-only`, проверяйте SQL и
-сохраняйте эти ограничения.
+Migrations use `DIRECT_URL` (direct/session connection); the app uses `DATABASE_URL` (Supabase transaction
+pooler). Partial indexes and `CHECK` constraints are written by hand in the migration SQL because Prisma cannot
+describe them. When changing the schema, create the migration with `prisma migrate dev --create-only`, review
+the SQL and keep those constraints.

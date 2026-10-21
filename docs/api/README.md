@@ -1,21 +1,21 @@
 # REST API
 
-- Базовый путь: `/api/v1`. Документация генерируется из тех же Zod-схем, которые проверяют запросы:
+- Base path: `/api/v1`. The docs are generated from the same Zod schemas that validate requests:
   - Swagger UI: `GET /api/docs`
-  - OpenAPI 3.1: `GET /api/v1/openapi.json` (снимок: [`openapi.json`](./openapi.json))
-- Реализация: `packages/api` (Hono). Маршруты: `packages/api/src/routes/index.ts`. Типы ответов: `packages/shared/src/types.ts`.
+  - OpenAPI 3.1: `GET /api/v1/openapi.json` (snapshot: [`openapi.json`](./openapi.json))
+- Implementation: `packages/api` (Hono). Routes: `packages/api/src/routes/index.ts`. Response types: `packages/shared/src/types.ts`.
 
-## Аутентификация
+## Authentication
 
-Каждый защищённый запрос передаёт заголовок `Authorization: tma <Telegram.WebApp.initData>`.
-Сервер проверяет HMAC-SHA256 (`secret = HMAC("WebAppData", bot_token)`), срок `auth_date`
-(`INIT_DATA_MAX_AGE_SECONDS`) и только после этого берёт Telegram ID. ID из параметров запроса не принимается.
-Пользователь создаётся при первом успешном запросе.
+Every protected request sends `Authorization: tma <Telegram.WebApp.initData>`.
+The server verifies the HMAC-SHA256 signature (`secret = HMAC("WebAppData", bot_token)`) and the `auth_date`
+age (`INIT_DATA_MAX_AGE_SECONDS`), and only then takes the Telegram user id. An id passed in query or body is
+never trusted. The user record is created on the first successful request.
 
-Публичные эндпоинты: `/health`, `/openapi.json`, `/telegram/webhook` (проверяет `X-Telegram-Bot-Api-Secret-Token`),
-`/dev/init-data` (только при `ALLOW_DEV_AUTH=true` и `NODE_ENV≠production`).
+Public endpoints: `/health`, `/openapi.json`, `/telegram/webhook` (checks `X-Telegram-Bot-Api-Secret-Token`),
+`/dev/init-data` (only with `ALLOW_DEV_AUTH=true` and `NODE_ENV≠production`).
 
-## Ошибки
+## Errors
 
 ```json
 {
@@ -27,33 +27,33 @@
 }
 ```
 
-| HTTP | code                                                                                                                                   | Когда                                                                          |
+| HTTP | code                                                                                                                                   | When                                                                           |
 | ---- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| 400  | `VALIDATION_ERROR`, `BAD_REQUEST`                                                                                                      | Неверное тело/параметры, ID не UUID                                            |
-| 401  | `UNAUTHORIZED`                                                                                                                         | Нет или неверная initData                                                      |
-| 404  | `NOT_FOUND`                                                                                                                            | Ресурс не существует **или принадлежит другому пользователю** (не различаются) |
-| 409  | `SESSION_IN_PROGRESS`, `INCOMPLETE_SESSION`, `SESSION_CANCELLED`, `PROGRAM_ARCHIVED`, `EXERCISE_ARCHIVED`, `TOO_MANY_SETS`, `CONFLICT` | Недопустимый переход состояния                                                 |
-| 413  | `PAYLOAD_TOO_LARGE`                                                                                                                    | Тело > 32 КБ                                                                   |
-| 500  | `INTERNAL`                                                                                                                             | Детали только в серверном логе                                                 |
+| 400  | `VALIDATION_ERROR`, `BAD_REQUEST`                                                                                                      | Invalid body/query, path id is not a UUID                                      |
+| 401  | `UNAUTHORIZED`                                                                                                                         | Missing or invalid initData                                                    |
+| 404  | `NOT_FOUND`                                                                                                                            | The resource does not exist **or belongs to another user** (indistinguishable) |
+| 409  | `SESSION_IN_PROGRESS`, `INCOMPLETE_SESSION`, `SESSION_CANCELLED`, `PROGRAM_ARCHIVED`, `EXERCISE_ARCHIVED`, `TOO_MANY_SETS`, `CONFLICT` | Invalid state transition                                                       |
+| 413  | `PAYLOAD_TOO_LARGE`                                                                                                                    | Body larger than 32 KB                                                         |
+| 500  | `INTERNAL`                                                                                                                             | Details only in the server log                                                 |
 
-## Идемпотентность и повторы
+## Idempotency and retries
 
-| Операция                                  | Как защищена от дублей                                                                                                                 |
-| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `PUT /sessions/{id}/sets/{setId}`         | `setId` генерирует клиент; PUT = создать или заменить. 201 при создании, 200 при повторе/правке                                        |
-| `DELETE /sessions/{id}/sets/{setId}`      | Повторное удаление → 204                                                                                                               |
-| `POST /sessions`                          | Необязательный клиентский `id`; повтор возвращает ту же сессию. Частичный уникальный индекс: одна незавершённая сессия на пользователя |
-| `POST /sessions/{id}/exercises`           | Необязательный клиентский `id`                                                                                                         |
-| `POST /sessions/{id}/complete`, `/cancel` | Повтор на уже завершённой/отменённой сессии возвращает её же                                                                           |
+| Operation                                 | Protection against duplicates                                                                                                              |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `PUT /sessions/{id}/sets/{setId}`         | `setId` is generated by the client; PUT = create or replace. 201 on create, 200 on retry/edit. A new set whose number is taken is appended |
+| `DELETE /sessions/{id}/sets/{setId}`      | Deleting again returns 204                                                                                                                 |
+| `POST /sessions`                          | Optional client `id`; a retry returns the same session. Partial unique index: one unfinished session per user                              |
+| `POST /sessions/{id}/exercises`           | Optional client `id`                                                                                                                       |
+| `POST /sessions/{id}/complete`, `/cancel` | Retrying on an already completed/cancelled session returns it unchanged                                                                    |
 
-## Пагинация и фильтры
+## Pagination and filters
 
 `GET /sessions?from=<ISO>&to=<ISO>&status=completed|cancelled|all&limit=20&cursor=<id>` → `{ items, nextCursor }`.
-`from` включительно, `to` исключительно. По умолчанию — только завершённые.
+`from` is inclusive, `to` exclusive. Only completed sessions by default.
 
-## Эндпоинты
+## Endpoints
 
-| Метод  | Путь                                                         | Назначение                                                          |
+| Method | Path                                                         | Purpose                                                             |
 | ------ | ------------------------------------------------------------ | ------------------------------------------------------------------- |
 | GET    | `/api/v1/me`                                                 | Current user                                                        |
 | GET    | `/api/v1/me/home`                                            | Home screen state                                                   |

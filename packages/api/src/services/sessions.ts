@@ -26,7 +26,7 @@ const sessionInclude = {
   exercises: {
     orderBy: [{ position: 'asc' as const }, { createdAt: 'asc' as const }],
     include: {
-      exercise: { select: { muscleGroup: true } },
+      exercise: { select: { muscleGroup: true, description: true } },
       sets: { orderBy: [{ setNumber: 'asc' as const }, { createdAt: 'asc' as const }] },
     },
   },
@@ -119,6 +119,7 @@ async function loadSession(db: DbOrTx, userId: string, sessionId: string): Promi
       exerciseId: e.exerciseId,
       name: e.exerciseNameSnapshot,
       muscleGroup: e.exercise.muscleGroup,
+      description: e.exercise.description,
       position: e.position,
       plannedSets: e.plannedSets,
       targetRepsMin: e.targetRepsMin,

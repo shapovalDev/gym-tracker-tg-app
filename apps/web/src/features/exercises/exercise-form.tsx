@@ -6,8 +6,8 @@ import {
   type ExerciseDto,
   type MuscleGroup,
 } from '@gym/shared';
-import { useEffect, useId, useState } from 'react';
-import { Button, Field, Sheet, TextArea } from '@/components/ui';
+import { useEffect, useState } from 'react';
+import { Button, Field, Select, Sheet, TextArea } from '@/components/ui';
 import { http } from '@/lib/api';
 import { useApiMutation } from '@/lib/mutations';
 
@@ -20,26 +20,15 @@ export function MuscleSelect({
   onChange: (v: MuscleGroup | '') => void;
   allowAll?: boolean;
 }) {
-  const id = useId();
   return (
-    <div className="space-y-1">
-      <label htmlFor={id} className="block px-1 text-[13px] font-medium text-muted">
-        Группа мышц
-      </label>
-      <select
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value as MuscleGroup | '')}
-        className="h-12 w-full rounded-2xl border border-border bg-surface-2 px-4 text-[16px] text-text"
-      >
-        <option value="">{allowAll ? 'Все группы' : 'Не указана'}</option>
-        {MUSCLE_GROUPS.map((g) => (
-          <option key={g} value={g}>
-            {MUSCLE_GROUP_LABELS[g]}
-          </option>
-        ))}
-      </select>
-    </div>
+    <Select label="Группа мышц" value={value} onChange={(v) => onChange(v as MuscleGroup | '')}>
+      <option value="">{allowAll ? 'Все группы' : 'Не указана'}</option>
+      {MUSCLE_GROUPS.map((g) => (
+        <option key={g} value={g}>
+          {MUSCLE_GROUP_LABELS[g]}
+        </option>
+      ))}
+    </Select>
   );
 }
 
@@ -53,7 +42,7 @@ export function ExerciseFormSheet({
 }: {
   open: boolean;
   onClose: () => void;
-  exercise?: ExerciseDto | null;
+  exercise?: Pick<ExerciseDto, 'id' | 'name' | 'muscleGroup' | 'description'> | null;
   initialName?: string;
   onSaved?: (e: ExerciseDto) => void;
 }) {
@@ -76,7 +65,7 @@ export function ExerciseFormSheet({
     },
     {
       invalidate: [['exercises'], ['program'], ['session']],
-      success: exercise ? 'Сохранено' : 'Упражнение создано',
+      success: exercise ? 'Упражнение сохранено' : 'Упражнение создано',
       onSuccess: (e) => {
         onSaved?.(e);
         onClose();
@@ -107,7 +96,8 @@ export function ExerciseFormSheet({
           label="Техника и заметки"
           value={description}
           onChange={setDescription}
-          placeholder="Необязательно"
+          placeholder="Например: лопатки сведены, пауза внизу"
+          hint="Видно в каждой тренировке с этим упражнением."
         />
         <Button type="submit" block size="lg" loading={save.isPending} disabled={!name.trim()}>
           Сохранить
