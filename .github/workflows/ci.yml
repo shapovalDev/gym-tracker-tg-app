@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: gym
+          POSTGRES_PASSWORD: gym
+          POSTGRES_DB: gym
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U gym" --health-interval 3s --health-timeout 3s --health-retries 20
+    env:
+      DATABASE_URL: postgresql://gym:gym@localhost:5432/gym
+      DIRECT_URL: postgresql://gym:gym@localhost:5432/gym
+      # Dummy token: tests sign and verify initData with it. Not a real secret.
+      TELEGRAM_BOT_TOKEN: '123456:ci-test-token'
+      TELEGRAM_WEBHOOK_SECRET: ci-secret
+      PUBLIC_APP_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - name: Unit + integration tests
+        run: pnpm test
+      - name: Production build
+        run: pnpm build
+      - name: E2E (Playwright)
+        run: |
+          pnpm --filter @gym/web exec playwright install --with-deps chromium
+          pnpm test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: apps/web/test-results
+          retention-days: 7

@@ -1,0 +1,32 @@
+{
+  "name": "gym-tracker",
+  "private": true,
+  "packageManager": "pnpm@10.18.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @gym/web dev",
+    "dev:api": "pnpm --filter @gym/api dev",
+    "build": "pnpm --filter @gym/api db:generate && pnpm --filter @gym/web build",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "test:e2e": "pnpm --filter @gym/web test:e2e",
+    "db:up": "docker compose up -d db",
+    "db:migrate": "pnpm --filter @gym/api db:migrate",
+    "db:deploy": "pnpm --filter @gym/api db:deploy",
+    "bot:setup": "pnpm --filter @gym/api bot:setup"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5",
+    "eslint": "9.39.5",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "16.5.0",
+    "prettier": "3.9.10",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.72.0"
+  }
+}

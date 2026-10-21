@@ -1,0 +1,185 @@
+// Gym tracker data model.
+// Planned structure (TrainingProgram -> ProgramWorkout -> WorkoutExercise) is kept
+// strictly separate from history (WorkoutSession -> SessionExercise -> ExerciseSet).
+// History holds name snapshots and SET NULL references, so editing or deleting
+// the plan never rewrites results. See docs/database/README.md.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum SessionStatus {
+  in_progress
+  completed
+  cancelled
+}
+
+enum SetStatus {
+  completed
+  skipped
+}
+
+enum MuscleGroup {
+  chest
+  back
+  shoulders
+  biceps
+  triceps
+  forearms
+  abs
+  quads
+  hamstrings
+  glutes
+  calves
+  full_body
+  cardio
+  other
+}
+
+model User {
+  id         String   @id @default(uuid()) @db.Uuid
+  telegramId BigInt   @unique
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+
+  exercises Exercise[]
+  programs  TrainingProgram[]
+  sessions  WorkoutSession[]
+}
+
+model Exercise {
+  id          String       @id @default(uuid()) @db.Uuid
+  userId      String       @db.Uuid
+  name        String       @db.VarChar(100)
+  muscleGroup MuscleGroup?
+  description String?      @db.VarChar(2000)
+  archivedAt  DateTime?    @db.Timestamptz(3)
+  createdAt   DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime     @updatedAt @db.Timestamptz(3)
+
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workoutExercises WorkoutExercise[]
+  sessionExercises SessionExercise[]
+
+  @@index([userId, archivedAt])
+}
+
+model TrainingProgram {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @db.Uuid
+  name        String    @db.VarChar(100)
+  description String?   @db.VarChar(2000)
+  /// At most one active program per user (partial unique index in migration).
+  isActive    Boolean   @default(false)
+  archivedAt  DateTime? @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(3)
+
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workouts ProgramWorkout[]
+  sessions WorkoutSession[]
+
+  @@index([userId, archivedAt])
+}
+
+model ProgramWorkout {
+  id        String   @id @default(uuid()) @db.Uuid
+  programId String   @db.Uuid
+  name      String   @db.VarChar(100)
+  /// 0-based order within the cycle; dense and unique per program.
+  position  Int
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  program   TrainingProgram   @relation(fields: [programId], references: [id], onDelete: Cascade)
+  exercises WorkoutExercise[]
+  sessions  WorkoutSession[]
+
+  @@unique([programId, position])
+}
+
+model WorkoutExercise {
+  id            String   @id @default(uuid()) @db.Uuid
+  workoutId     String   @db.Uuid
+  exerciseId    String   @db.Uuid
+  position      Int
+  plannedSets   Int?
+  targetRepsMin Int?
+  targetRepsMax Int?
+  notes         String?  @db.VarChar(2000)
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+
+  workout  ProgramWorkout @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+  exercise Exercise       @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+
+  @@unique([workoutId, position])
+  @@index([exerciseId])
+}
+
+model WorkoutSession {
+  id                  String        @id @default(uuid()) @db.Uuid
+  userId              String        @db.Uuid
+  programId           String?       @db.Uuid
+  workoutId           String?       @db.Uuid
+  programNameSnapshot String?       @db.VarChar(100)
+  workoutNameSnapshot String?       @db.VarChar(100)
+  /// At most one in_progress session per user (partial unique index in migration).
+  status              SessionStatus @default(in_progress)
+  startedAt           DateTime      @default(now()) @db.Timestamptz(3)
+  completedAt         DateTime?     @db.Timestamptz(3)
+  createdAt           DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime      @updatedAt @db.Timestamptz(3)
+
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program   TrainingProgram?  @relation(fields: [programId], references: [id], onDelete: SetNull)
+  workout   ProgramWorkout?   @relation(fields: [workoutId], references: [id], onDelete: SetNull)
+  exercises SessionExercise[]
+
+  @@index([userId, status, startedAt(sort: Desc)])
+  @@index([programId, status, completedAt(sort: Desc)])
+}
+
+model SessionExercise {
+  id                   String   @id @default(uuid()) @db.Uuid
+  sessionId            String   @db.Uuid
+  exerciseId           String   @db.Uuid
+  exerciseNameSnapshot String   @db.VarChar(100)
+  position             Int
+  plannedSets          Int?
+  targetRepsMin        Int?
+  targetRepsMax        Int?
+  notes                String?  @db.VarChar(2000)
+  createdAt            DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime @updatedAt @db.Timestamptz(3)
+
+  session  WorkoutSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  exercise Exercise       @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+  sets     ExerciseSet[]
+
+  @@index([sessionId, position])
+  @@index([exerciseId])
+}
+
+model ExerciseSet {
+  /// Client-generated UUID: PUT is idempotent, retries never duplicate sets.
+  id                String          @id @db.Uuid
+  sessionExerciseId String          @db.Uuid
+  setNumber         Int
+  /// kg, 2 decimal places, 0..1000.
+  weightKg          Decimal         @db.Decimal(6, 2)
+  reps              Int
+  status            SetStatus
+  createdAt         DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime        @updatedAt @db.Timestamptz(3)
+
+  sessionExercise SessionExercise @relation(fields: [sessionExerciseId], references: [id], onDelete: Cascade)
+
+  @@index([sessionExerciseId, setNumber])
+}

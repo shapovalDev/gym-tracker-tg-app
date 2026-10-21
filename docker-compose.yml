@@ -1,0 +1,52 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: gym
+      POSTGRES_PASSWORD: gym
+      POSTGRES_DB: gym
+    ports:
+      - '127.0.0.1:5544:5432'
+    volumes:
+      - gym-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U gym -d gym']
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # Full app (Next.js UI + API) built from the Dockerfile.
+  # Start with: docker compose --profile app up --build
+  migrate:
+    profiles: ['app']
+    build:
+      context: .
+      target: migrate
+    environment:
+      DIRECT_URL: postgresql://gym:gym@db:5432/gym
+      DATABASE_URL: postgresql://gym:gym@db:5432/gym
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app:
+    profiles: ['app']
+    build:
+      context: .
+      target: runner
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://gym:gym@db:5432/gym
+      DIRECT_URL: postgresql://gym:gym@db:5432/gym
+      NODE_ENV: production
+      ALLOW_DEV_AUTH: 'false'
+    ports:
+      - '3000:3000'
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  gym-db:

@@ -1,0 +1,15 @@
+node_modules
+.next
+.next-e2e
+dist
+coverage
+.env
+.env.local
+.env.*.local
+*.tsbuildinfo
+next-env.d.ts
+packages/api/src/generated
+playwright-report
+test-results
+.DS_Store
+.idea/workspace.xml

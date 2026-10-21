@@ -1,0 +1,11 @@
+node_modules
+.next
+.next-e2e
+dist
+coverage
+pnpm-lock.yaml
+packages/api/src/generated
+playwright-report
+test-results
+.claude
+.idea
