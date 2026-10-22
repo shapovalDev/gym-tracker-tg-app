@@ -22,34 +22,36 @@ import { ProgressChart } from '@/features/progress/progress-chart';
 import { errorMessage } from '@/lib/api';
 import { formatDate, formatShortDate, formatVolume, kg } from '@/lib/format';
 import { useExerciseAnalytics, useExercises, useSummary } from '@/lib/queries';
+import { count, t, type MsgKey } from '@/i18n';
 
-const PERIOD_LABELS: Record<Period, string> = {
-  '30d': '30 дней',
-  '90d': '90 дней',
-  '1y': 'Год',
-  all: 'Всё',
-};
+// English keys, translated at render time.
+const PERIOD_LABELS = {
+  '30d': '30 days',
+  '90d': '90 days',
+  '1y': 'Year',
+  all: 'All',
+} as const satisfies Record<Period, MsgKey>;
 
 type Metric = 'weight' | 'reps' | 'volume';
-const METRICS: { value: Metric; label: string; unit: string; explain: string }[] = [
+const METRICS: { value: Metric; label: MsgKey; unit: MsgKey; explain: MsgKey }[] = [
   {
     value: 'weight',
-    label: 'Вес',
-    unit: 'кг',
-    explain: 'Самый большой вес среди выполненных подходов на каждой тренировке.',
+    label: 'Weight',
+    unit: 'kg',
+    explain: 'The heaviest weight among completed working sets in each workout.',
   },
   {
     value: 'reps',
-    label: 'Повторы',
-    unit: 'повт.',
+    label: 'Reps',
+    unit: 'reps',
     explain:
-      'Лучшее число повторений с выбранным весом. Сравниваются только подходы с одинаковым весом.',
+      'The best number of reps at the selected weight. Only sets with the same weight are compared.',
   },
   {
     value: 'volume',
-    label: 'Объём',
-    unit: 'кг',
-    explain: 'Сумма «вес × повторы» по всем выполненным подходам упражнения за тренировку.',
+    label: 'Volume',
+    unit: 'kg',
+    explain: 'The sum of weight × reps over all working sets of the exercise in a workout.',
   },
 ];
 
@@ -104,35 +106,35 @@ function Progress() {
   if (!exercises || exercises.length === 0)
     return (
       <>
-        <PageHeader title="Прогресс" />
+        <PageHeader title={t('Progress')} />
         <EmptyState
-          title="Пока нечего показать"
-          text="Графики строятся по записанным подходам. Добавьте упражнения и проведите первую тренировку."
-          action={<LinkButton href="/exercises">К упражнениям</LinkButton>}
+          title={t('Nothing to show yet')}
+          text={t('Charts are built from recorded sets. Add exercises and do your first workout.')}
+          action={<LinkButton href="/exercises">{t('Go to exercises')}</LinkButton>}
         />
       </>
     );
 
   return (
     <>
-      <PageHeader title="Прогресс" />
+      <PageHeader title={t('Progress')} />
       <Segmented
-        label="Период"
+        label={t('Period')}
         value={period}
         onChange={setPeriod}
-        options={PERIODS.map((p) => ({ value: p, label: PERIOD_LABELS[p] }))}
+        options={PERIODS.map((p) => ({ value: p, label: t(PERIOD_LABELS[p]) }))}
       />
 
       {summary.data && (
-        <Section title="Все тренировки за период">
+        <Section title={t('All workouts in the period')}>
           <div className="grid grid-cols-2 gap-3">
             <Stat
-              label="Тренировок"
+              label={t('Workouts')}
               value={summary.data.completedWorkouts}
               sub={period !== 'all' && <Change pct={summary.data.changeWorkoutsPct} />}
             />
             <Stat
-              label="Объём"
+              label={t('Volume')}
               value={formatVolume(summary.data.volumeKg)}
               sub={period !== 'all' && <Change pct={summary.data.changeVolumePct} />}
             />
@@ -140,16 +142,16 @@ function Progress() {
         </Section>
       )}
 
-      <Section title="Упражнение">
+      <Section title={t('Exercise')}>
         <Select
-          label="Выберите упражнение"
+          label={t('Choose an exercise')}
           value={exerciseId ?? ''}
           onChange={(v) => router.replace(`/progress?exercise=${v}`)}
         >
           {exercises.map((e) => (
             <option key={e.id} value={e.id}>
               {e.name}
-              {e.archivedAt ? ' (архив)' : ''}
+              {e.archivedAt ? ` (${t('archived')})` : ''}
             </option>
           ))}
         </Select>
@@ -164,7 +166,7 @@ function Progress() {
               <div
                 className="-mx-1 flex gap-2 overflow-x-auto px-1"
                 role="group"
-                aria-label="Что показать на графике"
+                aria-label={t('What to show on the chart')}
               >
                 {METRICS.map((m) => (
                   <Chip
@@ -180,9 +182,9 @@ function Progress() {
                 <div
                   className="-mx-1 flex items-center gap-2 overflow-x-auto px-1"
                   role="group"
-                  aria-label="Вес для сравнения повторов"
+                  aria-label={t('Weight to compare reps at')}
                 >
-                  <span className="shrink-0 text-[14px] text-muted">С весом</span>
+                  <span className="shrink-0 text-[14px] text-muted">{t('At weight')}</span>
                   {a.availableWeights.map((w) => (
                     <button
                       key={w}
@@ -202,23 +204,23 @@ function Progress() {
               {chartPoints.length === 0 ? (
                 <p className="py-12 text-center text-[15px] text-muted">
                   {a.points.length === 0
-                    ? 'За этот период подходов нет'
-                    : 'Нет подходов для этого графика'}
+                    ? t('No sets in this period')
+                    : t('No sets for this chart')}
                 </p>
               ) : chartPoints.length === 1 ? (
                 <div className="py-8 text-center">
                   <p className="num text-[32px] font-semibold">
-                    {formatWeight(chartPoints[0]!.value)} {meta.unit}
+                    {formatWeight(chartPoints[0]!.value)} {t(meta.unit)}
                   </p>
                   <p className="text-[14px] text-muted">
-                    {formatDate(chartPoints[0]!.date)}. Для графика нужна ещё хотя бы одна
-                    тренировка.
+                    {formatDate(chartPoints[0]!.date)}.{' '}
+                    {t('The chart needs at least one more workout.')}
                   </p>
                 </div>
               ) : (
-                <ProgressChart points={chartPoints} unit={meta.unit} label={meta.label} />
+                <ProgressChart points={chartPoints} unit={t(meta.unit)} label={t(meta.label)} />
               )}
-              <p className="text-[13px] text-muted">{meta.explain}</p>
+              <p className="text-[13px] text-muted">{t(meta.explain)}</p>
               {chartPoints.length > 0 && (
                 <button
                   type="button"
@@ -226,15 +228,15 @@ function Progress() {
                   onClick={() => setShowTable(!showTable)}
                   aria-expanded={showTable}
                 >
-                  {showTable ? 'Скрыть таблицу' : 'Показать таблицей'}
+                  {showTable ? t('Hide table') : t('Show as table')}
                 </button>
               )}
               {showTable && (
                 <table className="w-full text-[15px]">
                   <thead>
                     <tr className="text-left text-muted">
-                      <th className="py-1 font-medium">Дата</th>
-                      <th className="py-1 text-right font-medium">{meta.label}</th>
+                      <th className="py-1 font-medium">{t('Date')}</th>
+                      <th className="py-1 text-right font-medium">{t(meta.label)}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -242,7 +244,7 @@ function Progress() {
                       <tr key={p.date} className="border-t border-line">
                         <td className="py-2">{formatShortDate(p.date)}</td>
                         <td className="num py-2 text-right font-semibold">
-                          {formatWeight(p.value)} {meta.unit}
+                          {formatWeight(p.value)} {t(meta.unit)}
                         </td>
                       </tr>
                     ))}
@@ -253,12 +255,12 @@ function Progress() {
 
             <div className="grid grid-cols-2 gap-3">
               <Stat
-                label="Тренировок с ним"
+                label={t('Workouts with it')}
                 value={a.summary.sessions}
-                sub={`${a.summary.workingSets} подходов`}
+                sub={count(a.summary.workingSets, 'set')}
               />
               <Stat
-                label="Макс. вес за период"
+                label={t('Max weight in period')}
                 value={bestWeightInPeriod !== null ? kg(bestWeightInPeriod) : '—'}
               />
             </div>
@@ -267,10 +269,10 @@ function Progress() {
       </Section>
 
       {a && (
-        <Section title="Личные рекорды" hint="За всё время">
+        <Section title={t('Personal records')} hint={t('All time')}>
           <Card className="divide-y divide-line">
             <RecordRow
-              label="Лучший рабочий вес"
+              label={t('Best working weight')}
               value={
                 a.records.bestWeight
                   ? `${kg(a.records.bestWeight.weightKg)} × ${a.records.bestWeight.reps}`
@@ -280,15 +282,17 @@ function Progress() {
             />
             {metric === 'reps' && weight !== null && (
               <RecordRow
-                label={`Больше всего повторов с ${kg(weight)}`}
+                label={t('Most reps at {weight}', { weight: kg(weight) })}
                 value={
-                  a.records.bestRepsAtWeight ? `${a.records.bestRepsAtWeight.reps} повт.` : null
+                  a.records.bestRepsAtWeight
+                    ? t('{reps} reps', { reps: a.records.bestRepsAtWeight.reps })
+                    : null
                 }
                 date={a.records.bestRepsAtWeight?.date}
               />
             )}
             <RecordRow
-              label="Объём за тренировку"
+              label={t('Volume in one workout')}
               value={
                 a.records.bestSessionVolume ? formatVolume(a.records.bestSessionVolume.value) : null
               }

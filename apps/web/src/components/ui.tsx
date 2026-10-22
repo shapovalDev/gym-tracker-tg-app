@@ -1,5 +1,6 @@
 'use client';
 
+import { t } from '@/i18n';
 import Link from 'next/link';
 import {
   useEffect,
@@ -319,7 +320,7 @@ export function Spinner({ small }: { small?: boolean }) {
   return (
     <span
       role="status"
-      aria-label="Загрузка"
+      aria-label={t('Loading')}
       className={cx(
         'inline-block animate-spin rounded-full border-2 border-current border-r-transparent',
         small ? 'size-4' : 'size-6',
@@ -344,7 +345,7 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
       </p>
       {onRetry && (
         <Button variant="secondary" size="sm" onClick={onRetry}>
-          Повторить
+          {t('Retry')}
         </Button>
       )}
     </Card>
@@ -401,7 +402,7 @@ export function Sheet({
     >
       <button
         type="button"
-        aria-label="Закрыть"
+        aria-label={t('Close')}
         className="absolute inset-0 bg-black/45"
         onClick={onClose}
       />
@@ -452,7 +453,7 @@ export function ConfirmSheet({
           {confirmLabel}
         </Button>
         <Button block size="lg" variant="secondary" onClick={onClose}>
-          Не сейчас
+          {t('Not now')}
         </Button>
       </div>
     </Sheet>
@@ -583,14 +584,14 @@ export function Stat({ label, value, sub }: { label: string; value: ReactNode; s
 }
 
 export function Change({ pct }: { pct: number | null }) {
-  if (pct === null) return <span className="text-muted">нет данных для сравнения</span>;
+  if (pct === null) return <span className="text-muted">{t('no data to compare')}</span>;
   const up = pct > 0;
   return (
     <span
       className={cx('font-semibold', pct === 0 ? 'text-muted' : up ? 'text-done' : 'text-danger')}
     >
       {up ? '+' : pct < 0 ? '−' : ''}
-      {Math.abs(pct)}% к прошлому периоду
+      {t('{pct}% vs previous period', { pct: Math.abs(pct) })}
     </span>
   );
 }

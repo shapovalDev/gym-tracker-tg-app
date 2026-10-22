@@ -1,11 +1,11 @@
 import { fromCentiKg, roundWeightKg, toCentiKg } from './weight';
-import type { SetStatus } from '../constants';
+import type { SetStatus, SetType } from '../constants';
 
 /**
  * Analytics primitives. All functions are pure and operate on *recorded* sets
  * only; planned sets never reach this module.
  *
- * Working set = status "completed" with reps >= 1.
+ * Working set = status "completed" with reps >= 1 and not marked as warm-up.
  * Volume      = Σ weight × reps over working sets.
  * e1RM        = Epley estimate weight × (1 + reps / 30), only for working sets
  *               with weight > 0 and 1 <= reps <= E1RM_MAX_REPS (estimates from
@@ -20,11 +20,20 @@ export interface MetricSet {
   weightKg: number;
   reps: number;
   status: SetStatus;
+  /** Missing means "working" (sets recorded before set types existed). */
+  setType?: SetType;
 }
 
-export function isWorkingSet(set: Pick<MetricSet, 'status' | 'reps'>): boolean {
-  return set.status === 'completed' && Number.isInteger(set.reps) && set.reps >= 1;
+export function isWorkingSet(set: Pick<MetricSet, 'status' | 'reps' | 'setType'>): boolean {
+  return (
+    set.status === 'completed' &&
+    set.setType !== 'warmup' &&
+    Number.isInteger(set.reps) &&
+    set.reps >= 1
+  );
 }
+
+export const isWarmup = (set: Pick<MetricSet, 'setType'>) => set.setType === 'warmup';
 
 export function epleyE1rm(weightKg: number, reps: number): number | null {
   if (!(weightKg > 0) || !Number.isInteger(reps) || reps < 1 || reps > E1RM_MAX_REPS) return null;
@@ -32,7 +41,9 @@ export function epleyE1rm(weightKg: number, reps: number): number | null {
 }
 
 /** Total volume in kg, computed exactly in centi-kg. */
-export function volumeKg(sets: readonly Pick<MetricSet, 'status' | 'reps' | 'weightKg'>[]): number {
+export function volumeKg(
+  sets: readonly Pick<MetricSet, 'status' | 'reps' | 'weightKg' | 'setType'>[],
+): number {
   let centi = 0;
   for (const s of sets) if (isWorkingSet(s)) centi += toCentiKg(s.weightKg) * s.reps;
   return fromCentiKg(centi);
@@ -171,7 +182,7 @@ export function percentChange(current: number | null, previous: number | null): 
 export interface SummarySession {
   startedAt: Date;
   completedAt: Date | null;
-  exercises: { sets: Pick<MetricSet, 'status' | 'reps' | 'weightKg'>[] }[];
+  exercises: { sets: Pick<MetricSet, 'status' | 'reps' | 'weightKg' | 'setType'>[] }[];
 }
 
 export interface SessionSummary {
@@ -180,6 +191,8 @@ export interface SessionSummary {
   exercisesCompleted: number;
   totalSets: number;
   skippedSets: number;
+  /** Warm-up sets: shown, but not part of totalSets or volume. */
+  warmupSets: number;
   volumeKg: number;
 }
 
@@ -187,16 +200,25 @@ export function summarizeSession(session: SummarySession): SessionSummary {
   let exercisesCompleted = 0;
   let totalSets = 0;
   let skippedSets = 0;
-  const all: Pick<MetricSet, 'status' | 'reps' | 'weightKg'>[] = [];
+  let warmupSets = 0;
+  const all: Pick<MetricSet, 'status' | 'reps' | 'weightKg' | 'setType'>[] = [];
   for (const ex of session.exercises) {
     const working = ex.sets.filter(isWorkingSet);
     if (working.length > 0) exercisesCompleted += 1;
     totalSets += working.length;
-    skippedSets += ex.sets.filter((s) => s.status === 'skipped').length;
+    skippedSets += ex.sets.filter((s) => s.status === 'skipped' && !isWarmup(s)).length;
+    warmupSets += ex.sets.filter(isWarmup).length;
     all.push(...ex.sets);
   }
   const durationSeconds = session.completedAt
     ? Math.max(0, Math.round((session.completedAt.getTime() - session.startedAt.getTime()) / 1000))
     : null;
-  return { durationSeconds, exercisesCompleted, totalSets, skippedSets, volumeKg: volumeKg(all) };
+  return {
+    durationSeconds,
+    exercisesCompleted,
+    totalSets,
+    skippedSets,
+    warmupSets,
+    volumeKg: volumeKg(all),
+  };
 }

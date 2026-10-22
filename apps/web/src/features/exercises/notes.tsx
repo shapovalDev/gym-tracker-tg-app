@@ -1,4 +1,5 @@
 import { NoteIcon } from '@/components/icons';
+import { t } from '@/i18n';
 
 /** Technique note (library) and plan note (this workout), shown where the exercise is. */
 export function ExerciseNotes({
@@ -17,7 +18,7 @@ export function ExerciseNotes({
             <NoteIcon />
           </span>
           <span>
-            <span className="font-semibold">В этой тренировке: </span>
+            <span className="font-semibold">{t('In this workout:')} </span>
             {plan}
           </span>
         </p>
@@ -28,7 +29,7 @@ export function ExerciseNotes({
             <NoteIcon />
           </span>
           <span>
-            <span className="font-semibold">Техника: </span>
+            <span className="font-semibold">{t('Technique:')} </span>
             {technique}
           </span>
         </p>

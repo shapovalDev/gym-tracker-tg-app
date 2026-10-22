@@ -13,8 +13,8 @@ import {
   Segmented,
 } from '@/components/ui';
 import { errorMessage } from '@/lib/api';
-import { plural } from '@/lib/format';
 import { usePrograms } from '@/lib/queries';
+import { count, t } from '@/i18n';
 
 export default function ProgramsPage() {
   const [tab, setTab] = useState<'active' | 'archived'>('active');
@@ -24,23 +24,23 @@ export default function ProgramsPage() {
   return (
     <>
       <PageHeader
-        title="Программы"
+        title={t('Programs')}
         right={
           <Link
             href="/exercises"
             className="press mt-1 inline-flex h-10 items-center rounded-xl border border-line bg-card px-3 text-[15px] font-semibold"
           >
-            Упражнения
+            {t('Exercises')}
           </Link>
         }
       />
       <Segmented
-        label="Какие программы показать"
+        label={t('Which programs to show')}
         value={tab}
         onChange={setTab}
         options={[
-          { value: 'active', label: 'Мои' },
-          { value: 'archived', label: 'Архив' },
+          { value: 'active', label: t('Mine') },
+          { value: 'archived', label: t('Archive') },
         ]}
       />
       {isLoading ? (
@@ -50,14 +50,14 @@ export default function ProgramsPage() {
       ) : items.length === 0 ? (
         tab === 'active' ? (
           <EmptyState
-            title="Программ пока нет"
-            text="Создайте программу, добавьте в неё тренировки и упражнения."
-            action={<LinkButton href="/programs/new">Создать программу</LinkButton>}
+            title={t('No programs yet')}
+            text={t('Create a program and add workouts and exercises to it.')}
+            action={<LinkButton href="/programs/new">{t('Create program')}</LinkButton>}
           />
         ) : (
           <EmptyState
-            title="Архив пуст"
-            text="Сюда попадают программы, которые вы убрали из списка. История по ним сохраняется."
+            title={t('The archive is empty')}
+            text={t('Programs you remove from the list end up here. Their history is kept.')}
           />
         )
       ) : (
@@ -71,13 +71,12 @@ export default function ProgramsPage() {
                 <span className="min-w-0 flex-1">
                   {p.isActive && (
                     <span className="mb-1 block text-[13px] font-semibold text-primary">
-                      Активная
+                      {t('Active')}
                     </span>
                   )}
                   <span className="block truncate text-[18px] font-semibold">{p.name}</span>
                   <span className="block truncate text-[14px] text-muted">
-                    {p.workoutCount}{' '}
-                    {plural(p.workoutCount, 'тренировка', 'тренировки', 'тренировок')}
+                    {count(p.workoutCount, 'workout')}
                     {p.description ? `. ${p.description}` : ''}
                   </span>
                 </span>
@@ -92,7 +91,7 @@ export default function ProgramsPage() {
       {tab === 'active' && items.length > 0 && (
         <BottomBar>
           <LinkButton href="/programs/new" variant="secondary" className="flex-1">
-            <PlusIcon /> Новая программа
+            <PlusIcon /> {t('New program')}
           </LinkButton>
         </BottomBar>
       )}

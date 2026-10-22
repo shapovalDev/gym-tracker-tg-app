@@ -17,14 +17,10 @@ import {
 import { WorkoutChooser } from '@/features/workout/workout-chooser';
 import { useStartWorkout } from '@/features/workout/use-start-workout';
 import { errorMessage } from '@/lib/api';
-import { formatDate, formatDuration, formatVolume, plural } from '@/lib/format';
+import { formatDate, formatDuration, formatToday, formatVolume } from '@/lib/format';
 import { useHome } from '@/lib/queries';
 import { firstName } from '@/lib/telegram';
-
-const today = () =>
-  new Intl.DateTimeFormat('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' }).format(
-    new Date(),
-  );
+import { t, tn } from '@/i18n';
 
 export default function HomePage() {
   const { data, isLoading, error, refetch } = useHome();
@@ -38,25 +34,30 @@ export default function HomePage() {
 
   return (
     <>
-      <PageHeader title={name ? `Привет, ${name}` : 'Тренировки'} subtitle={today()} />
+      <PageHeader
+        title={name ? t('Hi, {name}', { name }) : t('Workouts')}
+        subtitle={formatToday()}
+      />
 
       {data.activeSession ? (
         <Card className="space-y-4 border-primary p-5">
           <div>
-            <p className="text-[14px] font-medium text-primary">Тренировка не завершена</p>
+            <p className="text-[14px] font-medium text-primary">{t('Workout not finished')}</p>
             <p className="mt-1 text-[22px] leading-tight font-semibold">
-              {data.activeSession.workoutName ?? 'Свободная тренировка'}
+              {data.activeSession.workoutName ?? t('Free workout')}
             </p>
           </div>
           <LinkButton href="/workout" size="lg" className="w-full">
-            Продолжить тренировку
+            {t('Continue workout')}
           </LinkButton>
         </Card>
       ) : !data.activeProgram ? (
         <EmptyState
-          title="Начните с программы"
-          text="Программа — это тренировки, которые идут по кругу: A, B, C… и снова A. Создайте её и добавьте упражнения."
-          action={<LinkButton href="/programs/new">Создать программу</LinkButton>}
+          title={t('Start with a program')}
+          text={t(
+            'A program is a set of workouts that repeat in a cycle: A, B, C… and A again. Create one and add exercises.',
+          )}
+          action={<LinkButton href="/programs/new">{t('Create program')}</LinkButton>}
         />
       ) : data.nextWorkout ? (
         <Card className="overflow-hidden">
@@ -64,7 +65,7 @@ export default function HomePage() {
             <div className="flex items-center gap-3">
               <PlateBadge index={data.nextWorkout.position} size="lg" />
               <div className="min-w-0">
-                <p className="text-[14px] text-muted">Сегодня по программе</p>
+                <p className="text-[14px] text-muted">{t('Up next in your program')}</p>
                 <p className="text-[22px] leading-tight font-semibold">{data.nextWorkout.name}</p>
               </div>
             </div>
@@ -78,30 +79,30 @@ export default function HomePage() {
                 ))}
               </ol>
             ) : (
-              <p className="text-[15px] text-muted">В этой тренировке пока нет упражнений.</p>
+              <p className="text-[15px] text-muted">{t('This workout has no exercises yet.')}</p>
             )}
           </div>
           <div className="space-y-2 border-t border-line bg-inset p-4">
             {data.nextWorkout.exerciseCount > 0 ? (
               <Button block size="lg" loading={pending} onClick={() => start(data.nextWorkout!.id)}>
-                <PlayIcon /> Начать тренировку
+                <PlayIcon /> {t('Start workout')}
               </Button>
             ) : (
               <LinkButton href={`/programs/${data.activeProgram.id}`} size="lg" className="w-full">
-                Добавить упражнения
+                {t('Add exercises')}
               </LinkButton>
             )}
             <Button block variant="ghost" onClick={() => setChoosing(true)}>
-              Выбрать другую
+              {t('Choose another')}
             </Button>
           </div>
         </Card>
       ) : (
         <EmptyState
-          title="В программе нет тренировок"
-          text={`Добавьте тренировки в «${data.activeProgram.name}».`}
+          title={t('The program has no workouts')}
+          text={t('Add workouts to “{name}”.', { name: data.activeProgram.name })}
           action={
-            <LinkButton href={`/programs/${data.activeProgram.id}`}>Открыть программу</LinkButton>
+            <LinkButton href={`/programs/${data.activeProgram.id}`}>{t('Open program')}</LinkButton>
           }
         />
       )}
@@ -112,26 +113,26 @@ export default function HomePage() {
             {data.completedLast7Days}
           </div>
           <div className="mt-1.5 text-[14px] text-muted">
-            {plural(data.completedLast7Days, 'тренировка', 'тренировки', 'тренировок')} за неделю
+            {t('{workouts} this week', { workouts: tn(data.completedLast7Days, 'workout') })}
           </div>
         </Card>
         <Card className="p-4">
           <div className="num text-[30px] leading-none font-semibold">
             {data.completedLast30Days}
           </div>
-          <div className="mt-1.5 text-[14px] text-muted">за 30 дней</div>
+          <div className="mt-1.5 text-[14px] text-muted">{t('in 30 days')}</div>
         </Card>
       </div>
 
       {data.lastSession && (
-        <Section title="Прошлая тренировка">
+        <Section title={t('Last workout')}>
           <Link
             href={`/history/${data.lastSession.id}`}
             className="press block rounded-[22px] border border-line bg-card p-4"
           >
             <div className="flex items-baseline justify-between gap-3">
               <span className="truncate font-semibold">
-                {data.lastSession.workoutName ?? 'Свободная тренировка'}
+                {data.lastSession.workoutName ?? t('Free workout')}
               </span>
               <span className="shrink-0 text-[14px] text-muted">
                 {formatDate(data.lastSession.startedAt)}
@@ -140,13 +141,13 @@ export default function HomePage() {
             <div className="mt-3 grid grid-cols-3 gap-2 text-[14px]">
               <Metric
                 value={formatDuration(data.lastSession.summary.durationSeconds)}
-                label="время"
+                label={t('time')}
               />
               <Metric
                 value={String(data.lastSession.summary.totalSets)}
-                label={plural(data.lastSession.summary.totalSets, 'подход', 'подхода', 'подходов')}
+                label={tn(data.lastSession.summary.totalSets, 'set')}
               />
-              <Metric value={formatVolume(data.lastSession.summary.volumeKg)} label="объём" />
+              <Metric value={formatVolume(data.lastSession.summary.volumeKg)} label={t('volume')} />
             </div>
           </Link>
         </Section>

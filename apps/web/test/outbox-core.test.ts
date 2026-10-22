@@ -8,6 +8,8 @@ const body = (setNumber: number, weightKg = 40, reps = 10) => ({
   weightKg,
   reps,
   status: 'completed' as const,
+  setType: 'working' as const,
+  note: null,
 });
 const put = (setId: string, n: number, w?: number): OutboxOp => ({
   kind: 'putSet',
@@ -37,6 +39,7 @@ const session: SessionDto = {
     exercisesCompleted: 0,
     totalSets: 0,
     skippedSets: 0,
+    warmupSets: 0,
     volumeKg: 0,
   },
   exercises: [
@@ -60,6 +63,8 @@ const session: SessionDto = {
           weightKg: 40,
           reps: 10,
           status: 'completed',
+          setType: 'working',
+          note: null,
           updatedAt: '',
         },
       ],

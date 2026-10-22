@@ -15,9 +15,18 @@ the decisions taken where the specification left a choice.
 - **Workout:** start and restore after reload, exercise list with set progress, exercise screen (plan, notes,
   "last time", recorded sets, weight/reps steppers), edit/delete/skip sets, add/remove exercises, finish with a
   confirmation when sets are missing, cancel, summary (duration, exercises, sets, volume), offline queue.
+- **Set details:** a set can be marked as a warm-up (shown as Р1, Р2…; excluded from volume, charts, records
+  and from the planned-set count) and can carry a comment (≤ 200 chars, quick options).
+- **Last time, per set:** the entry form shows the matching set from the previous session (n-th working set vs
+  n-th working set, warm-up vs warm-up). A compact \"last time\" button opens the exercise history sheet with all
+  sets, weights, warm-ups and comments of recent sessions.
 - **History:** paginated list, period filter (30/90 days, custom), details, editing and adding sets, deleting a session.
 - **Progress:** exercise and period (30 days / 90 days / year / all time), charts of max weight, reps at a
   selected weight and volume, table view, personal records, totals and change versus the previous period.
+
+- **Languages:** English and Ukrainian (Russian removed). Default from the Telegram language (`uk` → Ukrainian,
+  otherwise English); the choice is stored per user on the server.
+- **Leaving a workout:** the tab bar stays available during a workout; a banner on every other page leads back.
 
 ## Decisions on open questions
 
@@ -29,6 +38,7 @@ the decisions taken where the specification left a choice.
 | Cancelled workout                                    | Stored with status `cancelled`; not in history by default, not in statistics, does not advance the cycle             |
 | Finishing without all planned sets                   | Requires confirmation; unrecorded sets simply do not exist                                                           |
 | "Last time"                                          | Sets of the same exercise (by id) from the latest completed session before the current one                           |
+| Matching \"last time\" set                           | By position within the set type, so warm-ups never shift the comparison of working sets                              |
 | Weight suggestion                                    | Fields are pre-filled from the previous set, but nothing is saved until "Record set" is tapped                       |
 | e1RM                                                 | Removed from the UI at the user's request (the API still computes it, Epley formula, for possible future use)        |
 | Records                                              | All time; charts and totals use the selected period                                                                  |

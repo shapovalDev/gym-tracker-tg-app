@@ -134,6 +134,7 @@ describe('summarizeSession', () => {
       exercisesCompleted: 1,
       totalSets: 1,
       skippedSets: 1,
+      warmupSets: 0,
       volumeKg: 400,
     });
   });
@@ -141,5 +142,28 @@ describe('summarizeSession', () => {
     expect(
       summarizeSession({ startedAt: d1, completedAt: null, exercises: [] }).durationSeconds,
     ).toBeNull();
+  });
+});
+
+describe('warm-up sets', () => {
+  const warm = (p: Partial<MetricSet>) => set({ setType: 'warmup', ...p });
+  it('are never working sets', () => {
+    expect(isWorkingSet({ status: 'completed', reps: 10, setType: 'warmup' })).toBe(false);
+    expect(isWorkingSet({ status: 'completed', reps: 10 })).toBe(true);
+  });
+  it('are excluded from volume, points and records', () => {
+    const sets = [warm({ weightKg: 100, reps: 10 }), set({ weightKg: 50, reps: 10 })];
+    expect(volumeKg(sets)).toBe(500);
+    expect(sessionPoints(sets)[0]).toMatchObject({ maxWeightKg: 50, workingSets: 1 });
+    expect(personalRecords(sets).bestWeight?.weightKg).toBe(50);
+    expect(personalRecords([warm({ weightKg: 100 })]).bestWeight).toBeNull();
+  });
+  it('are counted separately in the session summary', () => {
+    const s = summarizeSession({
+      startedAt: d1,
+      completedAt: d2,
+      exercises: [{ sets: [warm({ weightKg: 20, reps: 15 }), set({ weightKg: 60, reps: 8 })] }],
+    });
+    expect(s).toMatchObject({ totalSets: 1, warmupSets: 1, volumeKg: 480, exercisesCompleted: 1 });
   });
 });

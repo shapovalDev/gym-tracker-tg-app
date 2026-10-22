@@ -16,28 +16,20 @@ export const MUSCLE_GROUPS = [
 ] as const;
 export type MuscleGroup = (typeof MUSCLE_GROUPS)[number];
 
-export const MUSCLE_GROUP_LABELS: Record<MuscleGroup, string> = {
-  chest: 'Грудь',
-  back: 'Спина',
-  shoulders: 'Плечи',
-  biceps: 'Бицепс',
-  triceps: 'Трицепс',
-  forearms: 'Предплечья',
-  abs: 'Пресс',
-  quads: 'Квадрицепс',
-  hamstrings: 'Бицепс бедра',
-  glutes: 'Ягодицы',
-  calves: 'Икры',
-  full_body: 'Всё тело',
-  cardio: 'Кардио',
-  other: 'Другое',
-};
+/** UI languages. */
+export const LOCALES = ['en', 'uk'] as const;
+export type Locale = (typeof LOCALES)[number];
 
 export const SESSION_STATUSES = ['in_progress', 'completed', 'cancelled'] as const;
 export type SessionStatus = (typeof SESSION_STATUSES)[number];
 
 export const SET_STATUSES = ['completed', 'skipped'] as const;
 export type SetStatus = (typeof SET_STATUSES)[number];
+
+/** Warm-up sets are shown but never counted in statistics. */
+export const SET_TYPES = ['working', 'warmup'] as const;
+export type SetType = (typeof SET_TYPES)[number];
+export const SET_NOTE_MAX = 200;
 
 export const PERIODS = ['30d', '90d', '1y', 'all'] as const;
 export type Period = (typeof PERIODS)[number];

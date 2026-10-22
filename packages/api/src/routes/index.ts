@@ -1,8 +1,11 @@
 import {
   analyticsQuerySchema,
+  duplicateSchema,
   exerciseCreateSchema,
+  exerciseHistoryQuerySchema,
   exerciseListQuerySchema,
   exerciseUpdateSchema,
+  meUpdateSchema,
   programCreateSchema,
   programListQuerySchema,
   programUpdateSchema,
@@ -24,6 +27,13 @@ import * as exercises from '../services/exercises';
 import * as programs from '../services/programs';
 import * as sessions from '../services/sessions';
 
+const toMe = (u: { id: string; telegramId: bigint; locale: string | null; createdAt: Date }) => ({
+  id: u.id,
+  telegramId: u.telegramId.toString(),
+  locale: u.locale === 'en' || u.locale === 'uk' ? u.locale : null,
+  createdAt: u.createdAt.toISOString(),
+});
+
 const NF = { 404: 'Not found or not owned by the current user' };
 
 export function registerRoutes(r: ApiRouter) {
@@ -32,12 +42,24 @@ export function registerRoutes(r: ApiRouter) {
     { method: 'get', path: '/me', tag: 'Me', summary: 'Current user', response: 'MeDto' },
     async ({ c }) => {
       const user = await c.get('db').user.findUniqueOrThrow({ where: { id: c.get('userId') } });
-      return {
-        id: user.id,
-        telegramId: user.telegramId.toString(),
-        createdAt: user.createdAt.toISOString(),
-      };
+      return toMe(user);
     },
+  );
+  r.route(
+    {
+      method: 'patch',
+      path: '/me',
+      tag: 'Me',
+      summary: 'Update preferences (UI language)',
+      body: meUpdateSchema,
+      response: 'MeDto',
+    },
+    async ({ c, body }) =>
+      toMe(
+        await c
+          .get('db')
+          .user.update({ where: { id: c.get('userId') }, data: { locale: body.locale } }),
+      ),
   );
   r.route(
     {
@@ -84,6 +106,19 @@ export function registerRoutes(r: ApiRouter) {
       errors: NF,
     },
     ({ c, params }) => exercises.getExercise(c.get('db'), c.get('userId'), params.exerciseId!),
+  );
+  r.route(
+    {
+      method: 'get',
+      path: '/exercises/:exerciseId/history',
+      tag: 'Exercises',
+      summary: 'Recent completed sessions of an exercise with all sets',
+      query: exerciseHistoryQuerySchema,
+      response: '{ items: ExerciseHistoryEntryDto[] }',
+      errors: NF,
+    },
+    ({ c, params, query }) =>
+      exercises.exerciseHistory(c.get('db'), c.get('userId'), params.exerciseId!, query.limit ?? 6),
   );
   r.route(
     {
@@ -211,13 +246,15 @@ export function registerRoutes(r: ApiRouter) {
     {
       method: 'post',
       path: '/programs/:programId/duplicate',
+      body: duplicateSchema,
       tag: 'Programs',
       summary: 'Deep copy of a program',
       status: 201,
       response: 'ProgramDto',
       errors: NF,
     },
-    ({ c, params }) => programs.duplicateProgram(c.get('db'), c.get('userId'), params.programId!),
+    ({ c, params, body }) =>
+      programs.duplicateProgram(c.get('db'), c.get('userId'), params.programId!, body.name),
   );
   r.route(
     {
@@ -276,13 +313,15 @@ export function registerRoutes(r: ApiRouter) {
     {
       method: 'post',
       path: '/workouts/:workoutId/duplicate',
+      body: duplicateSchema,
       tag: 'Workouts',
       summary: 'Duplicate workout',
       status: 201,
       response: 'ProgramDto',
       errors: NF,
     },
-    ({ c, params }) => programs.duplicateWorkout(c.get('db'), c.get('userId'), params.workoutId!),
+    ({ c, params, body }) =>
+      programs.duplicateWorkout(c.get('db'), c.get('userId'), params.workoutId!, body.name),
   );
   r.route(
     {

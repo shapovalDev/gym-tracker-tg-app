@@ -1,7 +1,7 @@
 'use client';
 
-import { MUSCLE_GROUP_LABELS, type ExerciseDto, type MuscleGroup } from '@gym/shared';
-import { useDeferredValue, useState } from 'react';
+import type { ExerciseDto, MuscleGroup } from '@gym/shared';
+import { useState } from 'react';
 import { PlusIcon } from '@/components/icons';
 import {
   BottomBar,
@@ -17,12 +17,16 @@ import { ExerciseFormSheet, MuscleSelect } from '@/features/exercises/exercise-f
 import { errorMessage, http } from '@/lib/api';
 import { useApiMutation } from '@/lib/mutations';
 import { useExercises } from '@/lib/queries';
+import { t } from '@/i18n';
+import { muscleLabel } from '@/lib/format';
+import { useDebounced } from '@/lib/use-debounced';
 
 export default function ExercisesPage() {
   const [search, setSearch] = useState('');
   const [muscle, setMuscle] = useState<MuscleGroup | ''>('');
   const [tab, setTab] = useState<'active' | 'archived'>('active');
-  const deferred = useDeferredValue(search);
+  // one request per pause in typing, not per keystroke
+  const deferred = useDebounced(search.trim());
   const { data, isLoading, error, refetch } = useExercises({
     search: deferred,
     muscleGroup: muscle,
@@ -42,23 +46,23 @@ export default function ExercisesPage() {
 
   return (
     <>
-      <PageHeader title="Упражнения" subtitle="Ваша библиотека" />
+      <PageHeader title={t('Exercises')} subtitle={t('Your library')} />
       <div className="space-y-3">
         <Field
-          label="Поиск"
+          label={t('Search')}
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Название упражнения"
+          placeholder={t('Exercise name')}
         />
         <MuscleSelect value={muscle} onChange={setMuscle} allowAll />
         <Segmented
-          label="Какие упражнения показать"
+          label={t('Which exercises to show')}
           value={tab}
           onChange={setTab}
           options={[
-            { value: 'active', label: 'Активные' },
-            { value: 'archived', label: 'Архив' },
+            { value: 'active', label: t('Active') },
+            { value: 'archived', label: t('Archive') },
           ]}
         />
       </div>
@@ -70,14 +74,14 @@ export default function ExercisesPage() {
         <EmptyState
           title={
             search || muscle
-              ? 'Ничего не найдено'
+              ? t('Nothing found')
               : tab === 'archived'
-                ? 'Архив пуст'
-                : 'Библиотека пуста'
+                ? t('The archive is empty')
+                : t('The library is empty')
           }
           text={
             tab === 'active' && !search && !muscle
-              ? 'Создайте упражнения, чтобы добавлять их в тренировки.'
+              ? t('Create exercises to add them to workouts.')
               : undefined
           }
         />
@@ -92,25 +96,25 @@ export default function ExercisesPage() {
               >
                 <span className="block font-semibold">{e.name}</span>
                 <span className="block text-[14px] text-muted">
-                  {e.muscleGroup ? MUSCLE_GROUP_LABELS[e.muscleGroup] : 'Группа не указана'}
+                  {e.muscleGroup ? muscleLabel(e.muscleGroup) : t('No muscle group')}
                 </span>
                 {e.description && (
                   <span className="mt-1 line-clamp-2 block text-[14px]">{e.description}</span>
                 )}
               </button>
               <Button size="sm" variant="secondary" onClick={() => toggleArchive.mutate(e)}>
-                {e.archivedAt ? 'Вернуть' : 'В архив'}
+                {e.archivedAt ? t('Restore') : t('Archive')}
               </Button>
             </li>
           ))}
         </ul>
       )}
       <p className="px-1 text-[13px] text-muted">
-        Упражнение в архиве не удаляется: история и статистика по нему сохраняются.
+        {t('Archiving keeps the exercise: its history and statistics stay.')}
       </p>
       <BottomBar>
         <Button className="flex-1" onClick={() => setForm({ open: true, exercise: null })}>
-          <PlusIcon /> Новое упражнение
+          <PlusIcon /> {t('New exercise')}
         </Button>
       </BottomBar>
       <ExerciseFormSheet

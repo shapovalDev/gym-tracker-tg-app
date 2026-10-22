@@ -1,15 +1,12 @@
 'use client';
 
-import {
-  MUSCLE_GROUPS,
-  MUSCLE_GROUP_LABELS,
-  type ExerciseDto,
-  type MuscleGroup,
-} from '@gym/shared';
+import { MUSCLE_GROUPS, type ExerciseDto, type MuscleGroup } from '@gym/shared';
 import { useEffect, useState } from 'react';
 import { Button, Field, Select, Sheet, TextArea } from '@/components/ui';
 import { http } from '@/lib/api';
 import { useApiMutation } from '@/lib/mutations';
+import { t } from '@/i18n';
+import { muscleLabel } from '@/lib/format';
 
 export function MuscleSelect({
   value,
@@ -21,11 +18,15 @@ export function MuscleSelect({
   allowAll?: boolean;
 }) {
   return (
-    <Select label="Группа мышц" value={value} onChange={(v) => onChange(v as MuscleGroup | '')}>
-      <option value="">{allowAll ? 'Все группы' : 'Не указана'}</option>
+    <Select
+      label={t('Muscle group')}
+      value={value}
+      onChange={(v) => onChange(v as MuscleGroup | '')}
+    >
+      <option value="">{allowAll ? t('All groups') : t('Not set')}</option>
       {MUSCLE_GROUPS.map((g) => (
         <option key={g} value={g}>
-          {MUSCLE_GROUP_LABELS[g]}
+          {muscleLabel(g)}
         </option>
       ))}
     </Select>
@@ -65,7 +66,7 @@ export function ExerciseFormSheet({
     },
     {
       invalidate: [['exercises'], ['program'], ['session']],
-      success: exercise ? 'Упражнение сохранено' : 'Упражнение создано',
+      success: exercise ? t('Exercise saved') : t('Exercise created'),
       onSuccess: (e) => {
         onSaved?.(e);
         onClose();
@@ -74,7 +75,7 @@ export function ExerciseFormSheet({
   );
 
   return (
-    <Sheet open={open} onClose={onClose} title={exercise ? 'Упражнение' : 'Новое упражнение'}>
+    <Sheet open={open} onClose={onClose} title={exercise ? t('Exercise') : t('New exercise')}>
       <form
         className="space-y-4"
         onSubmit={(e) => {
@@ -83,24 +84,24 @@ export function ExerciseFormSheet({
         }}
       >
         <Field
-          label="Название"
+          label={t('Name')}
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={100}
           required
           autoFocus
-          placeholder="Жим штанги лёжа"
+          placeholder={t('Barbell bench press')}
         />
         <MuscleSelect value={muscle} onChange={setMuscle} />
         <TextArea
-          label="Техника и заметки"
+          label={t('Technique and notes')}
           value={description}
           onChange={setDescription}
-          placeholder="Например: лопатки сведены, пауза внизу"
-          hint="Видно в каждой тренировке с этим упражнением."
+          placeholder={t('E.g. shoulder blades back, pause at the bottom')}
+          hint={t('Shown in every workout with this exercise.')}
         />
         <Button type="submit" block size="lg" loading={save.isPending} disabled={!name.trim()}>
-          Сохранить
+          {t('Save')}
         </Button>
       </form>
     </Sheet>

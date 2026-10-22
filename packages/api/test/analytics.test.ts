@@ -147,7 +147,6 @@ describe('summary and home', () => {
     expect(home.completedLast7Days).toBe(2);
     expect(home.completedLast30Days).toBe(2);
     expect(home.lastSession.summary.volumeKg).toBe(300);
-    expect(home.highlights[0]).toMatchObject({ exerciseId: bench, lastMaxWeightKg: 60 });
     expect(home.activeProgram).toBeNull();
   });
 });

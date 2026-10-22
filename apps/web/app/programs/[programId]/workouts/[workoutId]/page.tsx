@@ -1,6 +1,6 @@
 'use client';
 
-import { MUSCLE_GROUP_LABELS, type ProgramDto, type WorkoutExerciseDto } from '@gym/shared';
+import type { ProgramDto, WorkoutExerciseDto } from '@gym/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -29,10 +29,11 @@ import { ExerciseNotes } from '@/features/exercises/notes';
 import { ExercisePicker } from '@/features/exercises/exercise-picker';
 import { useStartWorkout } from '@/features/workout/use-start-workout';
 import { errorMessage, http } from '@/lib/api';
-import { targetLabel } from '@/lib/format';
+import { muscleLabel, targetLabel } from '@/lib/format';
 import { useApiMutation } from '@/lib/mutations';
 import { queryKeys, useProgram } from '@/lib/queries';
 import { toast } from '@/lib/toast';
+import { t } from '@/i18n';
 
 const toInt = (v: string) => (v.trim() === '' ? null : Number.parseInt(v, 10));
 
@@ -61,10 +62,15 @@ export default function WorkoutEditorPage() {
     opts,
   );
   const duplicate = useApiMutation(
-    () => http.post<ProgramDto>(`/workouts/${workoutId}/duplicate`),
+    () =>
+      http.post<ProgramDto>(`/workouts/${workoutId}/duplicate`, {
+        name: t('{name} (copy)', {
+          name: program?.workouts.find((w) => w.id === workoutId)?.name ?? '',
+        }).slice(0, 100),
+      }),
     {
       ...opts,
-      success: 'Тренировка скопирована',
+      success: t('Workout copied'),
       onSuccess: (p) => {
         setProgram(p);
         router.replace(`/programs/${programId}/workouts/${p.workouts.at(-1)!.id}`);
@@ -86,8 +92,8 @@ export default function WorkoutEditorPage() {
       ...opts,
       onSuccess: (p, we) => {
         setProgram(p);
-        toast(`«${we.exercise.name}» убрано`, 'info', {
-          label: 'Вернуть',
+        toast(t('“{name}” removed', { name: we.exercise.name }), 'info', {
+          label: t('Undo'),
           onClick: () => restore(we),
         });
       },
@@ -120,7 +126,7 @@ export default function WorkoutEditorPage() {
     return <ErrorState message={errorMessage(error)} onRetry={() => refetch()} />;
   const index = program.workouts.findIndex((w) => w.id === workoutId);
   const workout = program.workouts[index];
-  if (!workout) return <ErrorState message="Тренировка не найдена. Возможно, её удалили." />;
+  if (!workout) return <ErrorState message={t('Workout not found. It may have been deleted.')} />;
   const items = workout.exercises;
 
   return (
@@ -133,15 +139,15 @@ export default function WorkoutEditorPage() {
           </span>
         }
         right={
-          <IconButton label="Действия с тренировкой" onClick={() => setMenu(true)}>
+          <IconButton label={t('Workout actions')} onClick={() => setMenu(true)}>
             <DotsIcon />
           </IconButton>
         }
       />
 
       <Section
-        title="Упражнения"
-        hint={items.length ? 'Нажмите на упражнение, чтобы задать подходы и повторы.' : undefined}
+        title={t('Exercises')}
+        hint={items.length ? t('Tap an exercise to set sets and reps.') : undefined}
         action={
           items.length > 1 && (
             <Button
@@ -149,18 +155,18 @@ export default function WorkoutEditorPage() {
               variant={ordering ? 'primary' : 'secondary'}
               onClick={() => setOrdering(!ordering)}
             >
-              {ordering ? 'Готово' : 'Порядок'}
+              {ordering ? t('Done') : t('Order')}
             </Button>
           )
         }
       >
         {items.length === 0 ? (
           <EmptyState
-            title="Добавьте упражнения"
-            text="Выберите из своей библиотеки или создайте новое. Можно добавить несколько подряд."
+            title={t('Add exercises')}
+            text={t('Pick from your library or create a new one. You can add several in a row.')}
             action={
               <Button onClick={() => setPicking(true)}>
-                <PlusIcon /> Добавить упражнения
+                <PlusIcon /> {t('Add exercises')}
               </Button>
             }
           />
@@ -191,15 +197,15 @@ export default function WorkoutEditorPage() {
                               target ? 'bg-inset text-ink' : 'bg-primary-soft text-primary',
                             )}
                           >
-                            {target ?? 'Задать подходы'}
+                            {target ?? t('Set sets and reps')}
                           </span>
                           {we.exercise.muscleGroup && (
                             <span className="text-[13px] text-muted">
-                              {MUSCLE_GROUP_LABELS[we.exercise.muscleGroup]}
+                              {muscleLabel(we.exercise.muscleGroup)}
                             </span>
                           )}
                           {we.exercise.archivedAt && (
-                            <span className="text-[13px] text-skip">в архиве</span>
+                            <span className="text-[13px] text-skip">{t('archived')}</span>
                           )}
                         </span>
                       </button>
@@ -212,7 +218,7 @@ export default function WorkoutEditorPage() {
                         />
                       ) : (
                         <IconButton
-                          label={`Убрать «${we.exercise.name}» из тренировки`}
+                          label={t('Remove “{name}” from the workout', { name: we.exercise.name })}
                           tone="danger"
                           onClick={() => remove.mutate(we)}
                         >
@@ -241,10 +247,10 @@ export default function WorkoutEditorPage() {
             onClick={() => setPicking(true)}
             loading={add.isPending}
           >
-            <PlusIcon /> Упражнения
+            <PlusIcon /> {t('Exercises')}
           </Button>
           <Button className="flex-1" loading={starting} onClick={() => start(workout.id)}>
-            <PlayIcon /> Начать
+            <PlayIcon /> {t('Start')}
           </Button>
         </BottomBar>
       )}
@@ -273,21 +279,23 @@ export default function WorkoutEditorPage() {
         onClose={() => setMenu(false)}
         title={workout.name}
         actions={[
-          { label: 'Переименовать', onClick: () => setRenaming(true) },
+          { label: t('Rename'), onClick: () => setRenaming(true) },
           {
-            label: 'Дублировать тренировку',
-            hint: 'Копия добавится в конец цикла',
+            label: t('Duplicate workout'),
+            hint: t('The copy is added to the end of the cycle'),
             onClick: () => duplicate.mutate(undefined),
           },
-          { label: 'Удалить тренировку', danger: true, onClick: () => setDeleting(true) },
+          { label: t('Delete workout'), danger: true, onClick: () => setDeleting(true) },
         ]}
       />
       <ConfirmSheet
         open={deleting}
         onClose={() => setDeleting(false)}
-        title="Удалить тренировку?"
-        text="Уже выполненные тренировки останутся в истории. Если это была последняя выполненная, цикл начнётся с первой."
-        confirmLabel="Удалить"
+        title={t('Delete the workout?')}
+        text={t(
+          'Finished workouts stay in history. If this was the last one done, the cycle restarts from the first workout.',
+        )}
+        confirmLabel={t('Delete')}
         danger
         loading={del.isPending}
         onConfirm={() => del.mutate(undefined)}
@@ -322,7 +330,7 @@ function PlanSheet({
   const minN = toInt(min);
   const maxN = toInt(max);
   const rangeError =
-    minN !== null && maxN !== null && minN > maxN ? 'Минимум больше максимума' : null;
+    minN !== null && maxN !== null && minN > maxN ? t('Minimum is greater than maximum') : null;
   const save = useApiMutation(
     () =>
       http.patch<ProgramDto>(`/workout-exercises/${item!.id}`, {
@@ -351,7 +359,7 @@ function PlanSheet({
         >
           <div className="grid grid-cols-3 gap-3">
             <Field
-              label="Подходы"
+              label={t('Sets')}
               inputMode="numeric"
               type="number"
               min={1}
@@ -361,7 +369,7 @@ function PlanSheet({
               placeholder="—"
             />
             <Field
-              label="Повторы от"
+              label={t('Reps from')}
               inputMode="numeric"
               type="number"
               min={1}
@@ -370,7 +378,7 @@ function PlanSheet({
               placeholder="—"
             />
             <Field
-              label="до"
+              label={t('to')}
               inputMode="numeric"
               type="number"
               min={1}
@@ -381,21 +389,21 @@ function PlanSheet({
             />
           </div>
           <p className="-mt-2 px-1 text-[13px] text-muted">
-            Это ориентир. На тренировке можно сделать сколько угодно подходов.
+            {t('This is a target. During the workout you can do as many sets as you like.')}
           </p>
           <TextArea
-            label="Заметка к упражнению в этой тренировке"
+            label={t('Note for this exercise in this workout')}
             value={notes}
             onChange={setNotes}
-            placeholder="Например: суперсет со следующим"
+            placeholder={t('E.g. superset with the next one')}
           />
           {item?.exercise.description && <ExerciseNotes technique={item.exercise.description} />}
           <Button type="submit" block size="lg" loading={save.isPending} disabled={!!rangeError}>
-            Сохранить
+            {t('Save')}
           </Button>
           <div className="flex gap-2">
             <Button variant="secondary" className="flex-1" onClick={() => setEditingExercise(true)}>
-              Изменить упражнение
+              {t('Edit exercise')}
             </Button>
             <Button
               variant="danger"
@@ -405,7 +413,7 @@ function PlanSheet({
                 onClose();
               }}
             >
-              Убрать
+              {t('Remove')}
             </Button>
           </div>
         </form>
@@ -445,7 +453,7 @@ function RenameSheet({
     },
   );
   return (
-    <Sheet open={open} onClose={onClose} title="Название тренировки">
+    <Sheet open={open} onClose={onClose} title={t('Workout name')}>
       <form
         className="space-y-4"
         onSubmit={(e) => {
@@ -454,14 +462,14 @@ function RenameSheet({
         }}
       >
         <Field
-          label="Название"
+          label={t('Name')}
           value={value}
           onChange={(e) => setValue(e.target.value)}
           maxLength={100}
           autoFocus
         />
         <Button type="submit" block size="lg" loading={save.isPending} disabled={!value.trim()}>
-          Сохранить
+          {t('Save')}
         </Button>
       </form>
     </Sheet>

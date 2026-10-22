@@ -2,7 +2,9 @@
 
 import type { QueryClient } from '@tanstack/react-query';
 import { useSyncExternalStore } from 'react';
-import { ApiError, http, isRetryable } from './api';
+import type { SessionDto, SetDto } from '@gym/shared';
+import { t } from '@/i18n';
+import { ApiError, errorMessage, http, isRetryable } from './api';
 import { backoffMs, enqueue, type OutboxOp } from './outbox-core';
 import { queryKeys } from './queries';
 
@@ -67,9 +69,32 @@ export function push(op: NewOp) {
   flush();
 }
 
-async function send(op: OutboxOp) {
-  if (op.kind === 'putSet') await http.put(`/sessions/${op.sessionId}/sets/${op.setId}`, op.body);
-  else await http.del(`/sessions/${op.sessionId}/sets/${op.setId}`);
+async function send(op: OutboxOp): Promise<SetDto | null> {
+  if (op.kind === 'putSet')
+    return http.put<SetDto>(`/sessions/${op.sessionId}/sets/${op.setId}`, op.body);
+  await http.del(`/sessions/${op.sessionId}/sets/${op.setId}`);
+  return null;
+}
+
+/**
+ * Put the confirmed set into cached sessions instead of refetching the whole
+ * session after every set (a refetch also recomputes "last time" server-side).
+ */
+function mergeSet(sessionId: string, set: SetDto) {
+  const merge = (s: SessionDto | null | undefined) => {
+    if (!s || s.id !== sessionId) return s;
+    return {
+      ...s,
+      exercises: s.exercises.map((e) => {
+        const others = e.sets.filter((x) => x.id !== set.id);
+        if (e.id !== set.sessionExerciseId)
+          return others.length === e.sets.length ? e : { ...e, sets: others };
+        return { ...e, sets: [...others, set].sort((a, b) => a.setNumber - b.setNumber) };
+      }),
+    };
+  };
+  queryClient?.setQueryData<SessionDto | null>(queryKeys.activeSession, merge);
+  queryClient?.setQueryData<SessionDto>(queryKeys.session(sessionId), (s) => merge(s) ?? undefined);
 }
 
 export async function flush(): Promise<void> {
@@ -80,14 +105,18 @@ export async function flush(): Promise<void> {
   }
   sending = true;
   persist();
-  const touched = new Set<string>();
+  // Sessions that need a full refetch: deletions renumber sets server-side,
+  // rejected ops must be replaced by the server's truth.
+  const resync = new Set<string>();
   try {
     while (queue.length > 0) {
       const op = queue[0]!;
       try {
-        await send(op);
+        const saved = await send(op);
         attempt = 0;
         lastError = null;
+        if (saved) mergeSet(op.sessionId, saved);
+        else resync.add(op.sessionId);
       } catch (e) {
         if (isRetryable(e)) {
           lastError = 'offline';
@@ -95,18 +124,18 @@ export async function flush(): Promise<void> {
           return;
         }
         // Permanent rejection (validation, cancelled session…): drop and resync.
-        lastError = e instanceof ApiError ? e.message : 'Ошибка сохранения';
+        lastError = e instanceof ApiError ? errorMessage(e) : t('Could not save');
+        resync.add(op.sessionId);
       }
-      touched.add(op.sessionId);
       queue = queue.slice(1);
       persist();
     }
   } finally {
     sending = false;
     persist();
-    for (const id of touched)
+    for (const id of resync)
       void queryClient?.invalidateQueries({ queryKey: queryKeys.session(id) });
-    if (touched.size) void queryClient?.invalidateQueries({ queryKey: queryKeys.activeSession });
+    if (resync.size) void queryClient?.invalidateQueries({ queryKey: queryKeys.activeSession });
   }
 }
 

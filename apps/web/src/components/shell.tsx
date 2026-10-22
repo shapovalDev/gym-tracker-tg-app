@@ -8,79 +8,80 @@ import { useOutbox } from '@/lib/outbox';
 import { useActiveSession } from '@/lib/queries';
 import { backButton } from '@/lib/telegram';
 import { dismissToast, useToasts } from '@/lib/toast';
+import { t } from '@/i18n';
 import { cx } from './ui';
 
+// Labels are translated at render time (the locale can change at runtime).
 const TABS = [
-  { href: '/', label: 'Главная', icon: HomeIcon },
-  { href: '/programs', label: 'Программы', icon: ListIcon },
-  { href: '/history', label: 'История', icon: ClockIcon },
-  { href: '/progress', label: 'Прогресс', icon: ChartIcon },
-  { href: '/settings', label: 'Ещё', icon: DotsIcon },
-];
+  { href: '/', label: 'Home', icon: HomeIcon },
+  { href: '/programs', label: 'Programs', icon: ListIcon },
+  { href: '/history', label: 'History', icon: ClockIcon },
+  { href: '/progress', label: 'Progress', icon: ChartIcon },
+  { href: '/settings', label: 'More', icon: DotsIcon },
+] as const;
 
-const isTabRoot = (p: string) => TABS.some((t) => t.href === p);
+const isTabRoot = (p: string) => TABS.some((tab) => tab.href === p);
 
 export function Shell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const inWorkout = pathname.startsWith('/workout');
   const { data: session } = useActiveSession();
-  const showSessionBar = !inWorkout && !!session;
   useTelegramBackButton(!isTabRoot(pathname));
 
   // Height of everything fixed at the bottom; pages and BottomBar offset by it.
   useEffect(() => {
-    const nav = inWorkout ? 0 : showSessionBar ? 60 + 56 : 60;
-    document.documentElement.style.setProperty('--nav-h', `${nav}px`);
-  }, [inWorkout, showSessionBar]);
+    document.documentElement.style.setProperty('--nav-h', '60px');
+  }, []);
 
   return (
     <div
       className="mx-auto min-h-dvh max-w-lg"
       style={{ paddingTop: 'calc(8px + var(--safe-top))' }}
     >
+      {/* The workout can be left at any time; this banner leads back to it. */}
+      {session && !inWorkout && (
+        <ActiveSessionBanner name={session.workoutName} startedAt={session.startedAt} />
+      )}
       <main
         className="space-y-6 px-4"
         style={{ paddingBottom: 'calc(var(--nav-h, 60px) + 104px + var(--safe-bottom))' }}
       >
         {children}
       </main>
-      {!inWorkout && (
-        <nav
-          aria-label="Основная навигация"
-          className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-card"
-          style={{ paddingBottom: 'var(--safe-bottom)' }}
-        >
-          {session && <ActiveSessionBar name={session.workoutName} startedAt={session.startedAt} />}
-          <TabBar pathname={pathname} />
-        </nav>
-      )}
+      <nav
+        aria-label={t('Main navigation')}
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-card"
+        style={{ paddingBottom: 'var(--safe-bottom)' }}
+      >
+        <TabBar pathname={pathname} workoutActive={!!session} />
+      </nav>
       <SyncIndicator />
       <Toasts />
     </div>
   );
 }
 
-function TabBar({ pathname }: { pathname: string }) {
+function TabBar({ pathname, workoutActive }: { pathname: string; workoutActive: boolean }) {
   return (
     <ul className="mx-auto flex max-w-lg">
-      {TABS.map((t) => {
+      {TABS.map((tab) => {
         const active =
-          t.href === '/'
-            ? pathname === '/'
-            : pathname.startsWith(t.href) ||
-              (t.href === '/programs' && pathname.startsWith('/exercises'));
+          tab.href === '/'
+            ? pathname === '/' || (workoutActive && pathname.startsWith('/workout'))
+            : pathname.startsWith(tab.href) ||
+              (tab.href === '/programs' && pathname.startsWith('/exercises'));
         return (
-          <li key={t.href} className="flex-1">
+          <li key={tab.href} className="flex-1">
             <Link
-              href={t.href}
+              href={tab.href}
               aria-current={active ? 'page' : undefined}
               className={cx(
                 'flex h-[60px] flex-col items-center justify-center gap-0.5 text-[11px] font-semibold',
                 active ? 'text-primary' : 'text-muted',
               )}
             >
-              <t.icon />
-              {t.label}
+              <tab.icon />
+              {t(tab.label)}
             </Link>
           </li>
         );
@@ -89,29 +90,35 @@ function TabBar({ pathname }: { pathname: string }) {
   );
 }
 
-function ActiveSessionBar({ name, startedAt }: { name: string | null; startedAt: string }) {
+/** Sticky reminder on every page while a workout is running. */
+function ActiveSessionBanner({ name, startedAt }: { name: string | null; startedAt: string }) {
   const elapsed = useElapsed(startedAt);
   return (
-    <Link
-      href="/workout"
-      className="press flex h-14 items-center justify-between gap-3 bg-primary px-4 text-on-primary"
-    >
-      <span className="flex min-w-0 items-center gap-3">
-        <span className="relative flex size-2.5 shrink-0">
-          <span className="absolute inline-flex size-full animate-ping rounded-full bg-white/70 motion-reduce:hidden" />
-          <span className="relative inline-flex size-2.5 rounded-full bg-white" />
-        </span>
-        <span className="min-w-0">
-          <span className="block truncate text-[15px] font-semibold">
-            {name ?? 'Свободная тренировка'}
+    <div className="sticky z-30 px-4 pb-2" style={{ top: 'calc(4px + var(--safe-top))' }}>
+      <Link
+        href="/workout"
+        className="press flex items-center justify-between gap-3 rounded-2xl bg-primary py-2.5 pr-2.5 pl-4 text-on-primary shadow-lg"
+      >
+        <span className="flex min-w-0 items-center gap-3">
+          <span className="relative flex size-2.5 shrink-0">
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-white/70 motion-reduce:hidden" />
+            <span className="relative inline-flex size-2.5 rounded-full bg-white" />
           </span>
-          <span className="num block text-[12px] opacity-85">идёт {formatClock(elapsed)}</span>
+          <span className="min-w-0">
+            <span className="block text-[12px] font-semibold tracking-wide uppercase opacity-90">
+              {t('Workout in progress')}
+            </span>
+            <span className="block truncate text-[15px] font-semibold">
+              {name ?? t('Free workout')}{' '}
+              <span className="num font-medium opacity-85">· {formatClock(elapsed)}</span>
+            </span>
+          </span>
         </span>
-      </span>
-      <span className="shrink-0 rounded-xl bg-white/20 px-3 py-1.5 text-[14px] font-semibold">
-        Вернуться
-      </span>
-    </Link>
+        <span className="shrink-0 rounded-xl bg-white/20 px-3 py-2 text-[14px] font-semibold">
+          {t('Continue')}
+        </span>
+      </Link>
+    </div>
   );
 }
 
@@ -134,8 +141,8 @@ function SyncIndicator() {
       className="fixed inset-x-0 z-40 mx-auto w-fit rounded-full bg-skip-soft px-3 py-1 text-[13px] font-semibold text-skip shadow"
       style={{ top: 'calc(6px + var(--safe-top))' }}
     >
-      {lastError === 'offline' ? 'Нет сети. ' : 'Сохраняю… '}
-      {queue.length} не отправлено
+      {lastError === 'offline' ? t('Offline.') : t('Saving…')}{' '}
+      {t('{n} not sent', { n: queue.length })}
     </div>
   );
 }

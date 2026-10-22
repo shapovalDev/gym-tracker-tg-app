@@ -3,6 +3,7 @@
 import type {
   ExerciseAnalyticsDto,
   ExerciseDto,
+  ExerciseHistoryEntryDto,
   HomeDto,
   MuscleGroup,
   Paginated,
@@ -21,6 +22,7 @@ export const queryKeys = {
   programs: (archived: boolean) => ['programs', { archived }] as const,
   program: (id: string) => ['program', id] as const,
   exercises: (f: object) => ['exercises', f] as const,
+  exerciseHistory: (id: string) => ['exercise-history', id] as const,
   activeSession: ['session', 'active'] as const,
   session: (id: string) => ['session', id] as const,
   history: (f: object) => ['history', f] as const,
@@ -108,4 +110,13 @@ export const useSummary = (period: Period) =>
   useQuery({
     queryKey: queryKeys.summary(period),
     queryFn: () => http.get<StatsSummaryDto>(`/analytics/summary?period=${period}`),
+  });
+
+export const useExerciseHistory = (id: string, enabled: boolean) =>
+  useQuery({
+    queryKey: queryKeys.exerciseHistory(id),
+    queryFn: () =>
+      http.get<{ items: ExerciseHistoryEntryDto[] }>(`/exercises/${id}/history?limit=6`),
+    select: (d) => d.items,
+    enabled,
   });

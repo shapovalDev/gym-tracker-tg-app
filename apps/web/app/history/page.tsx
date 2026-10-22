@@ -12,8 +12,9 @@ import {
   PageLoader,
 } from '@/components/ui';
 import { errorMessage } from '@/lib/api';
-import { formatDate, formatDuration, formatTime, formatVolume, plural } from '@/lib/format';
+import { formatDate, formatDuration, formatTime, formatVolume } from '@/lib/format';
 import { useHistory } from '@/lib/queries';
+import { count, t } from '@/i18n';
 
 type Range = 'all' | '30' | '90' | 'custom';
 
@@ -43,14 +44,18 @@ export default function HistoryPage() {
 
   return (
     <>
-      <PageHeader title="История" />
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1" role="group" aria-label="Период">
+      <PageHeader title={t('History')} />
+      <div
+        className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1"
+        role="group"
+        aria-label={t('Period')}
+      >
         {(
           [
-            ['all', 'Всё время'],
-            ['30', '30 дней'],
-            ['90', '90 дней'],
-            ['custom', 'Период…'],
+            ['all', t('All time')],
+            ['30', t('30 days')],
+            ['90', t('90 days')],
+            ['custom', t('Custom…')],
           ] as const
         ).map(([v, l]) => (
           <Chip key={v} active={range === v} onClick={() => setRange(v)}>
@@ -61,14 +66,14 @@ export default function HistoryPage() {
       {range === 'custom' && (
         <div className="grid grid-cols-2 gap-3">
           <Field
-            label="С"
+            label={t('From')}
             type="date"
             value={from}
             max={to || undefined}
             onChange={(e) => setFrom(e.target.value)}
           />
           <Field
-            label="По"
+            label={t('To')}
             type="date"
             value={to}
             min={from || undefined}
@@ -83,9 +88,9 @@ export default function HistoryPage() {
         <ErrorState message={errorMessage(error)} onRetry={() => refetch()} />
       ) : items.length === 0 ? (
         <EmptyState
-          title={range === 'all' ? 'Пока нет тренировок' : 'За этот период тренировок нет'}
+          title={range === 'all' ? t('No workouts yet') : t('No workouts in this period')}
           text={
-            range === 'all' ? 'Здесь появятся завершённые тренировки.' : 'Выберите другой период.'
+            range === 'all' ? t('Finished workouts will appear here.') : t('Choose another period.')
           }
         />
       ) : (
@@ -98,7 +103,7 @@ export default function HistoryPage() {
               >
                 <div className="flex items-baseline justify-between gap-3">
                   <span className="truncate text-[17px] font-semibold">
-                    {s.workoutName ?? 'Свободная тренировка'}
+                    {s.workoutName ?? t('Free workout')}
                   </span>
                   <span className="shrink-0 text-[14px] text-muted">
                     {formatDate(s.startedAt)}, {formatTime(s.startedAt)}
@@ -111,10 +116,7 @@ export default function HistoryPage() {
                 )}
                 <p className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-[14px]">
                   <span>{formatDuration(s.summary.durationSeconds)}</span>
-                  <span>
-                    {s.summary.totalSets}{' '}
-                    {plural(s.summary.totalSets, 'подход', 'подхода', 'подходов')}
-                  </span>
+                  <span>{count(s.summary.totalSets, 'set')}</span>
                   <span>{formatVolume(s.summary.volumeKg)}</span>
                 </p>
               </Link>
@@ -129,7 +131,7 @@ export default function HistoryPage() {
           loading={isFetchingNextPage}
           onClick={() => fetchNextPage()}
         >
-          Показать ещё
+          {t('Show more')}
         </Button>
       )}
     </>

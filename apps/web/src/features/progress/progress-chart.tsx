@@ -10,6 +10,7 @@ import {
   YAxis,
 } from 'recharts';
 import { formatShortDate, formatDate } from '@/lib/format';
+import { t } from '@/i18n';
 
 export interface ChartPoint {
   date: string;
@@ -35,7 +36,7 @@ export function ProgressChart({
   const max = Math.max(...values);
   const pad = Math.max(1, (max - min) * 0.15);
   return (
-    <figure aria-label={`График: ${label}`} className="h-56 w-full">
+    <figure aria-label={t('Chart: {name}', { name: label })} className="h-56 w-full">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 12, right: 12, bottom: 0, left: 0 }}>
           <CartesianGrid vertical={false} stroke="var(--line)" />

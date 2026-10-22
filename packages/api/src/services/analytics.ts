@@ -10,7 +10,6 @@ import {
   sessionPoints,
   volumeKg,
   type ExerciseAnalyticsDto,
-  type ExerciseHighlightDto,
   type HomeDto,
   type MetricSet,
   type Period,
@@ -45,6 +44,7 @@ async function exerciseSets(
       weightKg: true,
       reps: true,
       status: true,
+      setType: true,
       sessionExercise: { select: { session: { select: { id: true, startedAt: true } } } },
     },
   });
@@ -54,6 +54,7 @@ async function exerciseSets(
     weightKg: decimalToNumber(r.weightKg),
     reps: r.reps,
     status: r.status,
+    setType: r.setType,
   }));
 }
 
@@ -124,13 +125,14 @@ async function periodTotals(db: Db, userId: string, from: Date | null, to: Date)
           },
         },
       },
-      select: { weightKg: true, reps: true, status: true },
+      select: { weightKg: true, reps: true, status: true, setType: true },
     }),
   ]);
   const metricSets = sets.map((s) => ({
     weightKg: decimalToNumber(s.weightKg),
     reps: s.reps,
     status: s.status,
+    setType: s.setType,
   }));
   return {
     completedWorkouts,
@@ -161,60 +163,8 @@ export async function statsSummary(
   };
 }
 
-async function highlights(db: Db, userId: string): Promise<ExerciseHighlightDto[]> {
-  const rows = await db.exerciseSet.findMany({
-    where: {
-      sessionExercise: {
-        session: { userId, status: 'completed', startedAt: { gte: daysAgo(120) } },
-      },
-    },
-    select: {
-      weightKg: true,
-      reps: true,
-      status: true,
-      sessionExercise: {
-        select: {
-          exerciseId: true,
-          exercise: { select: { name: true, archivedAt: true } },
-          session: { select: { id: true, startedAt: true } },
-        },
-      },
-    },
-  });
-  const byExercise = new Map<string, { name: string; sets: MetricSet[] }>();
-  for (const r of rows) {
-    const se = r.sessionExercise;
-    if (se.exercise.archivedAt) continue;
-    const entry = byExercise.get(se.exerciseId) ?? { name: se.exercise.name, sets: [] };
-    entry.sets.push({
-      sessionId: se.session.id,
-      date: se.session.startedAt,
-      weightKg: decimalToNumber(r.weightKg),
-      reps: r.reps,
-      status: r.status,
-    });
-    byExercise.set(se.exerciseId, entry);
-  }
-  const result: ExerciseHighlightDto[] = [];
-  for (const [exerciseId, { name, sets }] of byExercise) {
-    const points = sessionPoints(sets);
-    const last = points.at(-1);
-    if (!last) continue;
-    const prev = points.at(-2) ?? null;
-    result.push({
-      exerciseId,
-      name,
-      lastDate: last.date,
-      lastBestE1rmKg: last.bestE1rmKg,
-      lastMaxWeightKg: last.maxWeightKg,
-      changeE1rmPct: prev ? percentChange(last.bestE1rmKg, prev.bestE1rmKg) : null,
-    });
-  }
-  return result.sort((a, b) => b.lastDate.localeCompare(a.lastDate)).slice(0, 4);
-}
-
 export async function homeState(db: Db, userId: string): Promise<HomeDto> {
-  const [program, activeSession, lastSession, completedLast7Days, completedLast30Days, hl] =
+  const [program, activeSession, lastSession, completedLast7Days, completedLast30Days] =
     await Promise.all([
       db.trainingProgram.findFirst({
         where: { userId, isActive: true, archivedAt: null },
@@ -245,7 +195,6 @@ export async function homeState(db: Db, userId: string): Promise<HomeDto> {
       db.workoutSession.count({
         where: { userId, status: 'completed', startedAt: { gte: daysAgo(30) } },
       }),
-      highlights(db, userId),
     ]);
   const nextId = program ? await computeNextWorkoutId(db, program.id, program.workouts) : null;
   const next = program?.workouts.find((w) => w.id === nextId) ?? null;
@@ -272,6 +221,5 @@ export async function homeState(db: Db, userId: string): Promise<HomeDto> {
     lastSession: lastSession ? toListItem(lastSession) : null,
     completedLast7Days,
     completedLast30Days,
-    highlights: hl,
   };
 }

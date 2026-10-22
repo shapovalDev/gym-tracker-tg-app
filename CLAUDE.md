@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Telegram Mini App for strength-training tracking. pnpm monorepo. UI text is Russian; code, comments, identifiers and all docs are English.
+Telegram Mini App for strength-training tracking. pnpm monorepo. UI is localised (English and Ukrainian, `apps/web/src/i18n`); code, comments, identifiers and all docs are English.
 
 ## Layout
 
@@ -20,6 +20,9 @@ Telegram Mini App for strength-training tracking. pnpm monorepo. UI text is Russ
 - Set writes are idempotent (`PUT /sessions/:id/sets/:clientUuid`). Keep new write endpoints retry-safe.
 - Partial unique indexes and CHECK constraints are hand-written in migration SQL — preserve them when generating new migrations (`prisma migrate dev --create-only`, then review).
 - Never weaken `initData` verification; local dev uses `/api/v1/dev/init-data` (signed with the real token, dev only).
+
+- UI strings: write `t('English source text')` from `@/i18n` and add the Ukrainian translation to `src/i18n/uk.ts` (the compiler rejects missing keys). Plurals: `count(n, 'set')` / `tn`. Never call `t()` at module level — translate at render time. The language is stored per user (`User.locale`, `PATCH /me`).
+- Warm-up sets (`setType: 'warmup'`) never count in statistics or towards planned sets; use `isWorkingSet` / `setsOfType`.
 
 ## Commands
 

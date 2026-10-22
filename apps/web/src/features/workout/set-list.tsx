@@ -1,57 +1,79 @@
 'use client';
 
-import { formatWeight, type SetDto } from '@gym/shared';
-import { TrashIcon } from '@/components/icons';
+import {
+  formatWeight,
+  setLabels,
+  setsOfType,
+  type PreviousResultDto,
+  type SetDto,
+} from '@gym/shared';
+import { ChevronRight, TrashIcon } from '@/components/icons';
 import { IconButton, cx } from '@/components/ui';
 import { isPendingSet } from '@/lib/outbox-core';
+import { t } from '@/i18n';
 
 export function SetRow({
   set,
+  label,
   onEdit,
   onDelete,
 }: {
   set: SetDto;
+  /** "1", "2"… for working sets, "W1"… for warm-ups (see setLabels). */
+  label: string;
   onEdit?: () => void;
   onDelete?: () => void;
 }) {
+  const warmup = set.setType === 'warmup';
   const done = set.status === 'completed';
   const pending = isPendingSet(set);
+  const name = warmup
+    ? t('Warm-up {n}', { n: label.replace(/^\D+/, '') })
+    : t('Set {n}', { n: label });
   return (
     <li
       className={cx(
         'flex items-center gap-3 rounded-2xl border py-1.5 pr-1 pl-3',
-        done ? 'border-done/30 bg-done-soft' : 'border-line bg-inset',
+        warmup
+          ? 'border-dashed border-line bg-card'
+          : done
+            ? 'border-done/30 bg-done-soft'
+            : 'border-line bg-inset',
       )}
     >
       <span
         className={cx(
-          'num grid size-9 shrink-0 place-items-center rounded-full text-[15px] font-semibold',
-          done ? 'bg-done text-white' : 'bg-card text-muted',
+          'num grid size-9 shrink-0 place-items-center rounded-full text-[14px] font-semibold',
+          warmup ? 'bg-skip-soft text-skip' : done ? 'bg-done text-white' : 'bg-card text-muted',
         )}
-        aria-label={done ? `Подход ${set.setNumber} выполнен` : `Подход ${set.setNumber} пропущен`}
+        aria-label={`${name} ${done ? t('done') : t('skipped')}`}
       >
-        {set.setNumber}
+        {label}
       </span>
       <button
         type="button"
         onClick={onEdit}
         disabled={!onEdit}
         className="min-w-0 flex-1 py-1.5 text-left"
-        aria-label={`Изменить подход ${set.setNumber}`}
+        aria-label={t('Edit: {name}', { name })}
       >
         {done ? (
-          <span className="num text-[22px] font-semibold">
+          <span
+            className={cx('num font-semibold', warmup ? 'text-[18px] text-muted' : 'text-[22px]')}
+          >
             {formatWeight(set.weightKg)}
-            <span className="font-sans text-[15px] font-medium text-muted"> кг × </span>
+            <span className="font-sans text-[15px] font-medium text-muted"> {t('kg')} × </span>
             {set.reps}
           </span>
         ) : (
-          <span className="text-[16px] font-medium text-muted">Пропущен</span>
+          <span className="text-[16px] font-medium text-muted">{t('Skipped')}</span>
         )}
-        {pending && <span className="block text-[12px] text-skip">сохраняется…</span>}
+        {warmup && <span className="ml-2 text-[13px] text-skip">{t('warm-up')}</span>}
+        {set.note && <span className="block text-[14px] text-muted">{set.note}</span>}
+        {pending && <span className="block text-[12px] text-skip">{t('saving…')}</span>}
       </button>
       {onDelete && (
-        <IconButton label={`Удалить подход ${set.setNumber}`} onClick={onDelete}>
+        <IconButton label={t('Delete: {name}', { name })} onClick={onDelete}>
           <TrashIcon />
         </IconButton>
       )}
@@ -59,39 +81,70 @@ export function SetRow({
   );
 }
 
-export function PreviousSets({
-  sets,
+/** Compact "last time" line; opens the full exercise history. */
+export function LastTimeButton({
+  previous,
   date,
+  onOpen,
 }: {
-  sets: { setNumber: number; weightKg: number; reps: number; status: string }[];
-  date: string;
+  previous: PreviousResultDto | null;
+  date: string | null;
+  onOpen: () => void;
 }) {
+  const working = previous ? setsOfType(previous.sets, 'working') : [];
+  const warmups = previous ? setsOfType(previous.sets, 'warmup').length : 0;
   return (
-    <div className="rounded-2xl border border-line bg-card px-4 py-3">
-      <p className="text-[13px] text-muted">В прошлый раз, {date}</p>
-      <p className="num mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[16px] font-semibold">
-        {sets.map((s) => (
-          <span
-            key={s.setNumber}
-            className={s.status === 'skipped' ? 'text-muted line-through' : ''}
-          >
-            {formatWeight(s.weightKg)}×{s.reps}
+    <button
+      type="button"
+      onClick={onOpen}
+      className="press flex w-full items-center gap-3 rounded-2xl border border-line bg-card px-4 py-3 text-left"
+    >
+      <span className="min-w-0 flex-1">
+        <span className="block text-[13px] text-muted">
+          {previous && date ? t('Last time, {date}', { date }) : t('Exercise history')}
+        </span>
+        {previous ? (
+          <span className="num mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[16px] font-semibold">
+            {working.map((s) => (
+              <span
+                key={s.setNumber}
+                className={s.status === 'skipped' ? 'text-muted line-through' : ''}
+              >
+                {formatWeight(s.weightKg)}×{s.reps}
+              </span>
+            ))}
+            {warmups > 0 && (
+              <span className="font-sans text-[14px] font-medium text-muted">
+                {t('+ {n} warm-up', { n: warmups })}
+              </span>
+            )}
           </span>
-        ))}
-      </p>
-    </div>
+        ) : (
+          <span className="block text-[15px]">{t('First time: no previous results')}</span>
+        )}
+      </span>
+      <span className="flex shrink-0 items-center gap-0.5 text-[14px] font-semibold text-primary">
+        {t('All')}
+        <ChevronRight />
+      </span>
+    </button>
   );
 }
 
-/** ●●○○ — recorded vs planned sets. */
+/** ●●○○ — recorded vs planned working sets. */
 export function SetDots({ done, planned }: { done: number; planned: number }) {
   const total = Math.max(planned, done);
   if (total === 0) return null;
   return (
-    <span className="flex gap-1" aria-label={`${done} из ${planned || done} подходов`}>
+    <span
+      className="flex gap-1"
+      aria-label={t('{done} of {total} sets', { done, total: planned || done })}
+    >
       {Array.from({ length: Math.min(total, 10) }, (_, i) => (
         <span key={i} className={cx('size-2 rounded-full', i < done ? 'bg-done' : 'bg-line')} />
       ))}
     </span>
   );
 }
+
+export { setLabels };

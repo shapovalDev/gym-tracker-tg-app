@@ -1,11 +1,14 @@
 'use client';
 
 import {
-  MUSCLE_GROUP_LABELS,
+  previousCounterpart,
+  setLabels,
+  setsOfType,
   summarizeSession,
   type SessionDto,
   type SessionExerciseDto,
   type SetDto,
+  type SetType,
 } from '@gym/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
@@ -29,14 +32,15 @@ import {
 import { ExerciseNotes } from '@/features/exercises/notes';
 import { ExercisePicker } from '@/features/exercises/exercise-picker';
 import { SetEntry, type SetEntryValue } from '@/features/workout/set-entry';
-import { PreviousSets, SetDots, SetRow } from '@/features/workout/set-list';
+import { ExerciseHistorySheet } from '@/features/workout/exercise-history-sheet';
+import { LastTimeButton, SetDots, SetRow } from '@/features/workout/set-list';
 import { errorMessage, http } from '@/lib/api';
 import {
   formatClock,
   formatDate,
   formatDuration,
   formatVolume,
-  plural,
+  muscleLabel,
   targetLabel,
 } from '@/lib/format';
 import { useApiMutation } from '@/lib/mutations';
@@ -45,6 +49,7 @@ import { applyPending } from '@/lib/outbox-core';
 import { queryKeys, useActiveSession } from '@/lib/queries';
 import { haptic, setClosingConfirmation } from '@/lib/telegram';
 import { toast } from '@/lib/toast';
+import { count, t } from '@/i18n';
 
 export default function WorkoutPage() {
   const { data: serverSession, isLoading, error, refetch } = useActiveSession();
@@ -67,16 +72,18 @@ export default function WorkoutPage() {
     return (
       <div className="pt-8">
         <EmptyState
-          title="Сейчас нет тренировки"
-          text="Начните тренировку с главного экрана."
-          action={<LinkButton href="/">На главную</LinkButton>}
+          title={t('No workout right now')}
+          text={t('Start a workout from Home.')}
+          action={<LinkButton href="/">{t('Go to Home')}</LinkButton>}
         />
       </div>
     );
   return <ActiveWorkout session={session} onCompleted={setSummary} />;
 }
 
-const isDone = (e: SessionExerciseDto) => e.sets.length >= Math.max(e.plannedSets ?? 0, 1);
+/** Warm-ups never count towards the plan. */
+const workingSets = (e: SessionExerciseDto) => e.sets.filter((s) => s.setType !== 'warmup');
+const isDone = (e: SessionExerciseDto) => workingSets(e).length >= Math.max(e.plannedSets ?? 0, 1);
 
 function ActiveWorkout({
   session,
@@ -121,7 +128,7 @@ function ActiveWorkout({
         setSession(s);
         setOpenId(null);
         setRemoving(null);
-        toast(`«${se.name}» убрано из тренировки`);
+        toast(t('“{name}” removed from the workout', { name: se.name }));
       },
     },
   );
@@ -143,7 +150,7 @@ function ActiveWorkout({
       // Never complete while sets are still only on this device.
       if (!(await drain())) {
         toast(
-          'Нет сети. Подходы сохранены на телефоне — завершите, когда связь появится.',
+          t('Offline. Sets are saved on the phone — finish when the connection is back.'),
           'error',
         );
         return;
@@ -153,7 +160,13 @@ function ActiveWorkout({
       });
       haptic.success();
       qc.setQueryData(queryKeys.activeSession, null);
-      for (const key of [queryKeys.home, ['history'], ['analytics'], ['summary']])
+      for (const key of [
+        queryKeys.home,
+        ['history'],
+        ['analytics'],
+        ['summary'],
+        ['exercise-history'],
+      ])
         void qc.invalidateQueries({ queryKey: key });
       onCompleted(done);
     } catch (e) {
@@ -167,14 +180,14 @@ function ActiveWorkout({
   const header = (
     <header className="flex items-start justify-between gap-2 px-1 pt-3">
       <div className="min-w-0">
-        <p className="num text-[15px] text-muted" aria-label="Длительность тренировки">
+        <p className="num text-[15px] text-muted" aria-label={t('Workout duration')}>
           {formatClock(elapsed)}
         </p>
         <h1 className="font-display truncate text-[22px] leading-tight font-semibold">
-          {session.workoutName ?? 'Свободная тренировка'}
+          {session.workoutName ?? t('Free workout')}
         </h1>
       </div>
-      <IconButton label="Действия с тренировкой" className="-mr-2" onClick={() => setMenu(true)}>
+      <IconButton label={t('Workout actions')} className="-mr-2" onClick={() => setMenu(true)}>
         <DotsIcon />
       </IconButton>
     </header>
@@ -197,12 +210,13 @@ function ActiveWorkout({
           <Card className="p-4">
             <div className="flex items-baseline justify-between">
               <span className="text-[15px] font-semibold">
-                {doneCount} из {session.exercises.length}{' '}
-                {plural(session.exercises.length, 'упражнения', 'упражнений', 'упражнений')}
+                {t('{done} of {total} exercises', {
+                  done: doneCount,
+                  total: session.exercises.length,
+                })}
               </span>
               <span className="text-[14px] text-muted">
-                {live.totalSets} {plural(live.totalSets, 'подход', 'подхода', 'подходов')},{' '}
-                {formatVolume(live.volumeKg)}
+                {count(live.totalSets, 'set')}, {formatVolume(live.volumeKg)}
               </span>
             </div>
             <div className="mt-3 h-2 overflow-hidden rounded-full bg-inset" aria-hidden>
@@ -217,18 +231,18 @@ function ActiveWorkout({
 
           {session.exercises.length === 0 ? (
             <EmptyState
-              title="Добавьте упражнения"
-              text="Это свободная тренировка: выберите упражнения из библиотеки."
+              title={t('Add exercises')}
+              text={t('This is a free workout: pick exercises from your library.')}
               action={
                 <Button onClick={() => setPicking(true)}>
-                  <PlusIcon /> Добавить упражнения
+                  <PlusIcon /> {t('Add exercises')}
                 </Button>
               }
             />
           ) : (
             <ol className="space-y-2.5">
               {session.exercises.map((e, i) => {
-                const completed = e.sets.filter((s) => s.status === 'completed').length;
+                const completed = workingSets(e).filter((s) => s.status === 'completed').length;
                 const done = isDone(e);
                 const reps = targetLabel(null, e.targetRepsMin, e.targetRepsMax);
                 return (
@@ -254,12 +268,15 @@ function ActiveWorkout({
                           {e.name}
                         </span>
                         <span className="mt-1.5 flex items-center gap-2.5">
-                          <SetDots done={e.sets.length} planned={e.plannedSets ?? 0} />
+                          <SetDots done={workingSets(e).length} planned={e.plannedSets ?? 0} />
                           <span className="text-[14px] text-muted">
-                            {completed}
-                            {e.plannedSets ? ` из ${e.plannedSets}` : ''}{' '}
-                            {plural(e.plannedSets || completed, 'подход', 'подхода', 'подходов')}
-                            {reps ? `, по ${reps}` : ''}
+                            {e.plannedSets
+                              ? t('{done} of {total} sets', {
+                                  done: completed,
+                                  total: e.plannedSets,
+                                })
+                              : count(completed, 'set')}
+                            {reps ? `, ${t('{reps} reps', { reps })}` : ''}
                           </span>
                         </span>
                       </span>
@@ -273,17 +290,17 @@ function ActiveWorkout({
             </ol>
           )}
 
-          <BottomBar flush>
+          <BottomBar>
             <Button
               variant="secondary"
               className="flex-1"
               onClick={() => setPicking(true)}
               loading={addExercise.isPending}
             >
-              <PlusIcon /> Упражнение
+              <PlusIcon /> {t('Exercise')}
             </Button>
             <Button variant="success" className="flex-1" onClick={() => setFinishOpen(true)}>
-              Завершить
+              {t('Finish')}
             </Button>
           </BottomBar>
         </>
@@ -292,21 +309,25 @@ function ActiveWorkout({
       <ExercisePicker
         open={picking}
         onClose={() => setPicking(false)}
-        title="Добавить в тренировку"
+        title={t('Add to workout')}
         addedIds={session.exercises.map((e) => e.exerciseId)}
         onPick={(e) => addExercise.mutate(e.id)}
       />
       <ActionSheet
         open={menu}
         onClose={() => setMenu(false)}
-        title={session.workoutName ?? 'Свободная тренировка'}
+        title={session.workoutName ?? t('Free workout')}
         actions={[
-          { label: 'Добавить упражнение', onClick: () => setPicking(true) },
-          open && { label: `Убрать «${open.name}»`, danger: true, onClick: () => askRemove(open) },
-          { label: 'Завершить тренировку', onClick: () => setFinishOpen(true) },
+          { label: t('Add exercise'), onClick: () => setPicking(true) },
+          open && {
+            label: t('Remove “{name}”', { name: open.name }),
+            danger: true,
+            onClick: () => askRemove(open),
+          },
+          { label: t('Finish workout'), onClick: () => setFinishOpen(true) },
           {
-            label: 'Отменить тренировку',
-            hint: 'Не попадёт в историю и статистику',
+            label: t('Cancel workout'),
+            hint: t('Will not appear in history or statistics'),
             danger: true,
             onClick: () => setCancelOpen(true),
           },
@@ -315,22 +336,24 @@ function ActiveWorkout({
       <ConfirmSheet
         open={finishOpen}
         onClose={() => setFinishOpen(false)}
-        title="Завершить тренировку?"
+        title={t('Finish the workout?')}
         text={
           unfinished.length > 0
-            ? `Не все подходы записаны: ${unfinished.map((e) => e.name).join(', ')}. Незаписанные подходы не засчитаются.`
-            : 'Результаты сохранятся в истории.'
+            ? t('Not all sets are recorded: {names}. Unrecorded sets will not count.', {
+                names: unfinished.map((e) => e.name).join(', '),
+              })
+            : t('The results will be saved to history.')
         }
-        confirmLabel={unfinished.length > 0 ? 'Всё равно завершить' : 'Завершить'}
+        confirmLabel={unfinished.length > 0 ? t('Finish anyway') : t('Finish')}
         loading={finishing}
         onConfirm={finish}
       />
       <ConfirmSheet
         open={!!removing}
         onClose={() => setRemoving(null)}
-        title={`Убрать «${removing?.name ?? ''}»?`}
-        text="Записанные подходы этого упражнения будут удалены."
-        confirmLabel="Убрать"
+        title={t('Remove “{name}”?', { name: removing?.name ?? '' })}
+        text={t('The recorded sets of this exercise will be deleted.')}
+        confirmLabel={t('Remove')}
         danger
         loading={removeExercise.isPending}
         onConfirm={() => removing && removeExercise.mutate(removing)}
@@ -338,9 +361,9 @@ function ActiveWorkout({
       <ConfirmSheet
         open={cancelOpen}
         onClose={() => setCancelOpen(false)}
-        title="Отменить тренировку?"
-        text="Она не засчитается как выполненная, цикл программы не сдвинется."
-        confirmLabel="Отменить тренировку"
+        title={t('Cancel the workout?')}
+        text={t('It will not count as done, and the program cycle will not move.')}
+        confirmLabel={t('Cancel workout')}
         danger
         loading={cancel.isPending}
         onConfirm={() => cancel.mutate(undefined)}
@@ -363,11 +386,20 @@ function ExerciseView({
   onRemove: () => void;
 }) {
   const [editing, setEditing] = useState<SetDto | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const index = session.exercises.findIndex((e) => e.id === exercise.id);
   const prevEx = session.exercises[index - 1];
   const nextEx = session.exercises[index + 1];
   const sets = exercise.sets;
   const target = targetLabel(exercise.plannedSets, exercise.targetRepsMin, exercise.targetRepsMax);
+  const labels = setLabels(sets, t('W'));
+  const counts = {
+    working: setsOfType(sets, 'working').length,
+    warmup: setsOfType(sets, 'warmup').length,
+  };
+  /** Last time's counterpart of the n-th set of a type (n is 0-based). */
+  const lastTimeAt = (type: SetType, n: number) =>
+    previousCounterpart(exercise.previous?.sets, type, n);
 
   // Suggestion only: last set of today, else the first set from last time.
   const suggestion = useMemo(() => {
@@ -396,6 +428,8 @@ function ExerciseView({
         weightKg: v.weightKg,
         reps: v.reps,
         status: v.status,
+        setType: v.setType,
+        note: v.note,
       },
     });
     haptic.tap();
@@ -414,53 +448,63 @@ function ExerciseView({
         onClick={onBack}
         className="-ml-1 flex h-10 items-center gap-1 text-[15px] font-semibold text-primary"
       >
-        <ChevronLeft /> Все упражнения
+        <ChevronLeft /> {t('All exercises')}
       </button>
 
       <div className="space-y-2.5">
         <p className="text-[14px] text-muted">
-          Упражнение {index + 1} из {session.exercises.length}
-          {exercise.muscleGroup
-            ? `, ${MUSCLE_GROUP_LABELS[exercise.muscleGroup].toLowerCase()}`
-            : ''}
+          {t('Exercise {n} of {total}', { n: index + 1, total: session.exercises.length })}
+          {exercise.muscleGroup ? `, ${muscleLabel(exercise.muscleGroup).toLowerCase()}` : ''}
         </p>
         <h2 className="text-[24px] leading-tight font-semibold">{exercise.name}</h2>
         <div className="flex flex-wrap items-center gap-2">
           <span className="rounded-lg bg-inset px-2.5 py-1 text-[14px] font-semibold">
-            {target ? `План: ${target}` : 'План не задан'}
+            {target ? t('Plan: {target}', { target }) : t('No plan set')}
           </span>
-          <SetDots done={sets.length} planned={exercise.plannedSets ?? 0} />
+          <SetDots done={workingSets(exercise).length} planned={exercise.plannedSets ?? 0} />
         </div>
         <ExerciseNotes plan={exercise.notes} technique={exercise.description} />
       </div>
 
-      {exercise.previous ? (
-        <PreviousSets
-          sets={exercise.previous.sets}
-          date={formatDate(exercise.previous.date).toLowerCase()}
-        />
-      ) : (
-        <p className="rounded-2xl border border-dashed border-line px-4 py-3 text-[14px] text-muted">
-          Первый раз: прошлых результатов нет
-        </p>
-      )}
+      <LastTimeButton
+        previous={exercise.previous}
+        date={exercise.previous ? formatDate(exercise.previous.date).toLowerCase() : null}
+        onOpen={() => setHistoryOpen(true)}
+      />
 
       {sets.length > 0 && (
-        <ul className="space-y-2" aria-label="Подходы">
+        <ul className="space-y-2" aria-label={t('Sets')}>
           {sets.map((s) =>
             editing?.id === s.id ? (
               <li key={s.id}>
                 <SetEntry
                   key={`edit-${s.id}`}
-                  setNumber={s.setNumber}
-                  initial={{ weightKg: s.weightKg, reps: s.reps }}
-                  submitLabel="Сохранить"
+                  title={t('Edit: {name}', {
+                    name:
+                      s.setType === 'warmup'
+                        ? t('Warm-up {n}', { n: (labels.get(s) ?? '').replace(/^\D+/, '') })
+                        : t('Set {n}', { n: labels.get(s) ?? '' }),
+                  })}
+                  initial={{ weightKg: s.weightKg, reps: s.reps, setType: s.setType, note: s.note }}
+                  lastTime={(type) =>
+                    lastTimeAt(
+                      type,
+                      setsOfType(sets, type).findIndex((x) => x.id === s.id),
+                    )
+                  }
+                  submitLabel={t('Save')}
                   onSubmit={(v) => save(v, s)}
                   onCancel={() => setEditing(null)}
                 />
               </li>
             ) : (
-              <SetRow key={s.id} set={s} onEdit={() => setEditing(s)} onDelete={() => remove(s)} />
+              <SetRow
+                key={s.id}
+                set={s}
+                label={labels.get(s) ?? ''}
+                onEdit={() => setEditing(s)}
+                onDelete={() => remove(s)}
+              />
             ),
           )}
         </ul>
@@ -472,8 +516,9 @@ function ExerciseView({
       {!editing && (
         <SetEntry
           key={`new-${exercise.id}`}
-          setNumber={sets.length + 1}
+          counts={counts}
           suggestion={suggestion}
+          lastTime={(type) => lastTimeAt(type, counts[type])}
           onSubmit={(v) => save(v)}
         />
       )}
@@ -483,13 +528,20 @@ function ExerciseView({
         className="block w-full py-2 text-center text-[14px] font-medium text-danger"
         onClick={onRemove}
       >
-        Убрать упражнение из тренировки
+        {t('Remove exercise from the workout')}
       </button>
 
-      <BottomBar flush>
+      <ExerciseHistorySheet
+        exerciseId={exercise.exerciseId}
+        name={exercise.name}
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+      />
+
+      <BottomBar>
         <Button
           variant="secondary"
-          aria-label="Предыдущее упражнение"
+          aria-label={t('Previous exercise')}
           disabled={!prevEx}
           onClick={() => prevEx && onNavigate(prevEx.id)}
         >
@@ -497,12 +549,12 @@ function ExerciseView({
         </Button>
         {nextEx ? (
           <Button className="min-w-0 flex-1" onClick={() => onNavigate(nextEx.id)}>
-            <span className="truncate">Дальше: {nextEx.name}</span>
+            <span className="truncate">{t('Next: {name}', { name: nextEx.name })}</span>
             <ChevronRight />
           </Button>
         ) : (
           <Button variant="secondary" className="flex-1" onClick={onBack}>
-            К списку упражнений
+            {t('Back to exercise list')}
           </Button>
         )}
       </BottomBar>
@@ -518,29 +570,29 @@ function WorkoutSummary({ session }: { session: SessionDto }) {
         <div className="mx-auto grid size-16 place-items-center rounded-full bg-done text-white">
           <CheckIcon />
         </div>
-        <h1 className="font-display mt-4 text-[24px] font-semibold">Тренировка завершена</h1>
-        <p className="mt-1 text-muted">{session.workoutName ?? 'Свободная тренировка'}</p>
+        <h1 className="font-display mt-4 text-[24px] font-semibold">{t('Workout finished')}</h1>
+        <p className="mt-1 text-muted">{session.workoutName ?? t('Free workout')}</p>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <Stat
-          label="Общая длительность"
+          label={t('Total duration')}
           value={formatDuration(s.durationSeconds)}
-          sub="от старта до завершения"
+          sub={t('from start to finish')}
         />
-        <Stat label="Объём" value={formatVolume(s.volumeKg)} sub="вес × повторы" />
-        <Stat label="Упражнений" value={s.exercisesCompleted} />
+        <Stat label={t('Volume')} value={formatVolume(s.volumeKg)} sub={t('weight × reps')} />
+        <Stat label={t('Exercises')} value={s.exercisesCompleted} />
         <Stat
-          label="Подходов"
+          label={t('Sets')}
           value={s.totalSets}
-          sub={s.skippedSets ? `ещё ${s.skippedSets} пропущено` : undefined}
+          sub={s.skippedSets ? t('{n} more skipped', { n: s.skippedSets }) : undefined}
         />
       </div>
-      <BottomBar flush>
+      <BottomBar>
         <LinkButton href={`/history/${session.id}`} variant="secondary" className="flex-1">
-          Подробно
+          {t('Details')}
         </LinkButton>
         <LinkButton href="/" className="flex-1">
-          На главную
+          {t('Go to Home')}
         </LinkButton>
       </BottomBar>
     </div>

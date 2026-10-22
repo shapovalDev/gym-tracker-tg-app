@@ -21,7 +21,7 @@ const display = Unbounded({
 
 export const metadata: Metadata = {
   title: 'Gym Tracker',
-  description: 'Тренировки, подходы и прогресс в Telegram',
+  description: 'Workouts, sets and progress in Telegram',
   robots: { index: false, follow: false },
 };
 
@@ -37,7 +37,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     // The Telegram SDK writes theme CSS variables onto <html> before hydration.
-    <html lang="ru" suppressHydrationWarning className={`${body.variable} ${display.variable}`}>
+    <html lang="en" suppressHydrationWarning className={`${body.variable} ${display.variable}`}>
       <head>
         <Script src="https://telegram.org/js/telegram-web-app.js?59" strategy="beforeInteractive" />
       </head>

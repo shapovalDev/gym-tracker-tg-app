@@ -25,9 +25,9 @@ import {
   TextArea,
 } from '@/components/ui';
 import { errorMessage, http } from '@/lib/api';
-import { plural } from '@/lib/format';
 import { useApiMutation } from '@/lib/mutations';
 import { queryKeys, useProgram } from '@/lib/queries';
+import { count, t } from '@/i18n';
 
 export default function ProgramPage() {
   const { programId } = useParams<{ programId: string }>();
@@ -48,7 +48,7 @@ export default function ProgramPage() {
   );
   const activate = useApiMutation(() => http.post<ProgramDto>(`/programs/${programId}/activate`), {
     ...common,
-    success: 'Программа активна',
+    success: t('Program is active'),
   });
   const archive = useApiMutation(
     () =>
@@ -64,10 +64,13 @@ export default function ProgramPage() {
     },
   );
   const duplicate = useApiMutation(
-    () => http.post<ProgramDto>(`/programs/${programId}/duplicate`),
+    () =>
+      http.post<ProgramDto>(`/programs/${programId}/duplicate`, {
+        name: t('{name} (copy)', { name: program?.name ?? '' }).slice(0, 100),
+      }),
     {
       invalidate: [['programs']],
-      success: 'Копия создана',
+      success: t('Copy created'),
       onSuccess: (p) => router.push(`/programs/${p.id}`),
     },
   );
@@ -82,10 +85,10 @@ export default function ProgramPage() {
       <PageHeader
         title={program.name}
         subtitle={
-          program.archivedAt ? 'В архиве' : program.isActive ? 'Активная программа' : 'Программа'
+          program.archivedAt ? t('Archived') : program.isActive ? t('Active program') : t('Program')
         }
         right={
-          <IconButton label="Действия с программой" onClick={() => setMenu(true)}>
+          <IconButton label={t('Program actions')} onClick={() => setMenu(true)}>
             <DotsIcon />
           </IconButton>
         }
@@ -96,16 +99,16 @@ export default function ProgramPage() {
 
       {!program.isActive && !program.archivedAt && (
         <Card className="flex items-center justify-between gap-3 p-4">
-          <p className="text-[15px]">Сейчас на главной другая программа.</p>
+          <p className="text-[15px]">{t('Another program is shown on Home now.')}</p>
           <Button size="sm" onClick={() => activate.mutate(undefined)} loading={activate.isPending}>
-            Сделать активной
+            {t('Make active')}
           </Button>
         </Card>
       )}
 
       <Section
-        title="Тренировки по кругу"
-        hint="После последней снова идёт первая."
+        title={t('Workouts in the cycle')}
+        hint={t('After the last one comes the first again.')}
         action={
           workouts.length > 1 && (
             <Button
@@ -113,15 +116,15 @@ export default function ProgramPage() {
               variant={ordering ? 'primary' : 'secondary'}
               onClick={() => setOrdering(!ordering)}
             >
-              {ordering ? 'Готово' : 'Порядок'}
+              {ordering ? t('Done') : t('Order')}
             </Button>
           )
         }
       >
         {workouts.length === 0 ? (
           <EmptyState
-            title="Пока нет тренировок"
-            text="Добавьте первую, например «Грудь и трицепс»."
+            title={t('No workouts yet')}
+            text={t('Add the first one, e.g. “Chest and triceps”.')}
           />
         ) : (
           <ul className="space-y-2.5">
@@ -135,14 +138,14 @@ export default function ProgramPage() {
                       <span className="truncate text-[17px] font-semibold">{w.name}</span>
                       {next && (
                         <span className="shrink-0 rounded-full bg-primary-soft px-2 py-0.5 text-[12px] font-semibold text-primary">
-                          следующая
+                          {t('next')}
                         </span>
                       )}
                     </span>
                     <span className="mt-0.5 line-clamp-2 text-[14px] text-muted">
                       {w.exercises.length
                         ? w.exercises.map((e) => e.exercise.name).join(', ')
-                        : 'Нет упражнений, нажмите, чтобы добавить'}
+                        : t('No exercises, tap to add')}
                     </span>
                   </span>
                 </>
@@ -177,8 +180,9 @@ export default function ProgramPage() {
         )}
         {workouts.length > 0 && (
           <p className="px-1 text-[13px] text-muted">
-            {workouts.length} {plural(workouts.length, 'тренировка', 'тренировки', 'тренировок')} в
-            цикле. Откройте тренировку, чтобы изменить упражнения.
+            {t('{workouts} in the cycle. Open a workout to change its exercises.', {
+              workouts: count(workouts.length, 'workout'),
+            })}
           </p>
         )}
       </Section>
@@ -189,7 +193,7 @@ export default function ProgramPage() {
           className="flex-1"
           onClick={() => setAdding(true)}
         >
-          <PlusIcon /> Добавить тренировку
+          <PlusIcon /> {t('Add workout')}
         </Button>
       </BottomBar>
 
@@ -200,19 +204,19 @@ export default function ProgramPage() {
         actions={[
           !program.isActive &&
             !program.archivedAt && {
-              label: 'Сделать активной',
-              hint: 'Будет показываться на главной',
+              label: t('Make active'),
+              hint: t('Will be shown on Home'),
               onClick: () => activate.mutate(undefined),
             },
-          { label: 'Изменить название и описание', onClick: () => setEditing(true) },
+          { label: t('Edit name and description'), onClick: () => setEditing(true) },
           {
-            label: 'Дублировать программу',
-            hint: 'Копия со всеми тренировками и упражнениями',
+            label: t('Duplicate program'),
+            hint: t('A copy with all workouts and exercises'),
             onClick: () => duplicate.mutate(undefined),
           },
           program.archivedAt
-            ? { label: 'Вернуть из архива', onClick: () => archive.mutate(undefined) }
-            : { label: 'Убрать в архив', danger: true, onClick: () => setArchiveOpen(true) },
+            ? { label: t('Restore from archive'), onClick: () => archive.mutate(undefined) }
+            : { label: t('Move to archive'), danger: true, onClick: () => setArchiveOpen(true) },
         ]}
       />
       <EditProgramSheet
@@ -225,7 +229,7 @@ export default function ProgramPage() {
         open={adding}
         onClose={() => setAdding(false)}
         programId={programId}
-        defaultName={`Тренировка ${String.fromCharCode(65 + workouts.length)}`}
+        defaultName={t('Workout {n}', { n: String.fromCharCode(65 + workouts.length) })}
         onSaved={(p) => {
           setProgram(p);
           router.push(`/programs/${programId}/workouts/${p.workouts.at(-1)!.id}`);
@@ -234,9 +238,9 @@ export default function ProgramPage() {
       <ConfirmSheet
         open={archiveOpen}
         onClose={() => setArchiveOpen(false)}
-        title="Убрать программу в архив?"
-        text="История тренировок сохранится. Программу можно вернуть в любой момент."
-        confirmLabel="Убрать в архив"
+        title={t('Move the program to the archive?')}
+        text={t('Workout history is kept. You can restore the program at any time.')}
+        confirmLabel={t('Move to archive')}
         danger
         loading={archive.isPending}
         onConfirm={() => archive.mutate(undefined)}
@@ -270,7 +274,7 @@ function EditProgramSheet({
     },
   );
   return (
-    <Sheet open={open} onClose={onClose} title="Программа">
+    <Sheet open={open} onClose={onClose} title={t('Program')}>
       <form
         className="space-y-4"
         onSubmit={(e) => {
@@ -279,15 +283,15 @@ function EditProgramSheet({
         }}
       >
         <Field
-          label="Название"
+          label={t('Name')}
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={100}
           required
         />
-        <TextArea label="Описание" value={description} onChange={setDescription} />
+        <TextArea label={t('Description')} value={description} onChange={setDescription} />
         <Button type="submit" block size="lg" loading={save.isPending} disabled={!name.trim()}>
-          Сохранить
+          {t('Save')}
         </Button>
       </form>
     </Sheet>
@@ -323,7 +327,7 @@ function AddWorkoutSheet({
     },
   );
   return (
-    <Sheet open={open} onClose={onClose} title="Новая тренировка">
+    <Sheet open={open} onClose={onClose} title={t('New workout')}>
       <form
         className="space-y-4"
         onSubmit={(e) => {
@@ -332,16 +336,16 @@ function AddWorkoutSheet({
         }}
       >
         <Field
-          label="Название"
+          label={t('Name')}
           value={name}
           placeholder={defaultName}
           onChange={(e) => setName(e.target.value)}
           maxLength={100}
           autoFocus
-          hint="Например, «Спина и бицепс». Потом откроется список упражнений."
+          hint={t('E.g. “Back and biceps”. The exercise list opens next.')}
         />
         <Button type="submit" block size="lg" loading={save.isPending}>
-          Добавить и перейти к упражнениям
+          {t('Add and go to exercises')}
         </Button>
       </form>
     </Sheet>

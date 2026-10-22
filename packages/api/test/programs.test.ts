@@ -35,13 +35,13 @@ describe('programs', () => {
 
     await c.patch(`/workouts/${a.id}`, { name: 'A2' });
     const dup = await c.post(`/workouts/${a.id}/duplicate`);
-    expect(dup.body.workouts.map((w: any) => w.name)).toEqual(['C', 'A2', 'B', 'A2 (копия)']);
+    expect(dup.body.workouts.map((w: any) => w.name)).toEqual(['C', 'A2', 'B', 'A2 (copy)']);
 
     const afterDelete = await c.del(`/workouts/${cc.id}`);
     expect(afterDelete.body.workouts.map((w: any) => [w.name, w.position])).toEqual([
       ['A2', 0],
       ['B', 1],
-      ['A2 (копия)', 2],
+      ['A2 (copy)', 2],
     ]);
   });
 
@@ -95,7 +95,9 @@ describe('programs', () => {
     expect(list.find((p: any) => p.id === p1.id).isActive).toBe(false);
 
     const copy = (await c.post(`/programs/${p1.id}/duplicate`)).body;
-    expect(copy.name).toBe('One (копия)');
+    expect(copy.name).toBe('One (copy)');
+    const named = (await c.post(`/programs/${p1.id}/duplicate`, { name: 'One (копія)' })).body;
+    expect(named.name).toBe('One (копія)');
     expect(copy.workouts[0].exercises[0]).toMatchObject({ exerciseId: ex, plannedSets: 3 });
     expect(copy.isActive).toBe(false);
 

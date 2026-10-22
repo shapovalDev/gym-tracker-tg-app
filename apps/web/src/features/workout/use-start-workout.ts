@@ -8,6 +8,7 @@ import { ApiError, errorMessage, http } from '@/lib/api';
 import { queryKeys } from '@/lib/queries';
 import { haptic } from '@/lib/telegram';
 import { toast } from '@/lib/toast';
+import { t } from '@/i18n';
 
 /** Starts a session (idempotent client id) and opens the workout screen. */
 export function useStartWorkout() {
@@ -29,7 +30,7 @@ export function useStartWorkout() {
       void qc.invalidateQueries({ queryKey: queryKeys.home });
     } catch (e) {
       if (e instanceof ApiError && e.code === 'SESSION_IN_PROGRESS') {
-        toast('У вас уже есть незавершённая тренировка', 'info');
+        toast(t('You already have an unfinished workout'), 'info');
         router.push('/workout');
       } else {
         toast(errorMessage(e), 'error');

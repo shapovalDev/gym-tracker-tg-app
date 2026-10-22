@@ -27,10 +27,15 @@ await callBotApi(token, 'setWebhook', {
   secret_token: secret,
   allowed_updates: ['message'],
 });
+// The menu button has one label for everyone; commands are localised.
 await callBotApi(token, 'setChatMenuButton', {
-  menu_button: { type: 'web_app', text: 'Тренировка', web_app: { url } },
+  menu_button: { type: 'web_app', text: 'Workout', web_app: { url } },
 });
 await callBotApi(token, 'setMyCommands', {
-  commands: [{ command: 'start', description: 'Открыть трекер' }],
+  commands: [{ command: 'start', description: 'Open the tracker' }],
+});
+await callBotApi(token, 'setMyCommands', {
+  commands: [{ command: 'start', description: 'Відкрити трекер' }],
+  language_code: 'uk',
 });
 console.info(`Bot configured.\n  webhook: ${webhook}\n  menu button -> ${url}`);

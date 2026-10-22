@@ -1,34 +1,34 @@
 import { formatWeight } from '@gym/shared';
+import { count, intlLocale, t } from '@/i18n';
 
-const dateFmt = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long' });
-const dateYearFmt = new Intl.DateTimeFormat('ru-RU', {
-  day: 'numeric',
-  month: 'long',
-  year: 'numeric',
-});
-const shortFmt = new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: '2-digit' });
-const weekdayFmt = new Intl.DateTimeFormat('ru-RU', { weekday: 'short' });
-const timeFmt = new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit' });
+const fmt = (opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(intlLocale(), opts);
+const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 
 export function formatDate(iso: string): string {
   const d = new Date(iso);
   const now = new Date();
   const days = Math.floor((startOfDay(now) - startOfDay(d)) / 86400000);
-  if (days === 0) return 'Сегодня';
-  if (days === 1) return 'Вчера';
-  return d.getFullYear() === now.getFullYear() ? dateFmt.format(d) : dateYearFmt.format(d);
+  if (days === 0) return t('Today');
+  if (days === 1) return t('Yesterday');
+  return fmt(
+    d.getFullYear() === now.getFullYear()
+      ? { day: 'numeric', month: 'long' }
+      : { day: 'numeric', month: 'long', year: 'numeric' },
+  ).format(d);
 }
-const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 
-export const formatShortDate = (iso: string) => shortFmt.format(new Date(iso));
-export const formatWeekday = (iso: string) => weekdayFmt.format(new Date(iso));
-export const formatTime = (iso: string) => timeFmt.format(new Date(iso));
+export const formatShortDate = (iso: string) =>
+  fmt({ day: '2-digit', month: '2-digit' }).format(new Date(iso));
+export const formatTime = (iso: string) =>
+  fmt({ hour: '2-digit', minute: '2-digit' }).format(new Date(iso));
+export const formatToday = () =>
+  fmt({ weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
 
 export function formatDuration(seconds: number | null): string {
   if (seconds === null) return '—';
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
-  return h > 0 ? `${h} ч ${m} мин` : `${m} мин`;
+  return h > 0 ? t('{h} h {m} min', { h, m }) : t('{m} min', { m });
 }
 
 export function formatClock(seconds: number): string {
@@ -40,19 +40,12 @@ export function formatClock(seconds: number): string {
   return h > 0 ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
-export const kg = (w: number) => `${formatWeight(w)} кг`;
+export const kg = (w: number) => `${formatWeight(w)} ${t('kg')}`;
 
 export function formatVolume(v: number): string {
-  if (v >= 10000) return `${(v / 1000).toFixed(1).replace('.', ',')} т`;
-  return `${new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 1 }).format(v)} кг`;
-}
-
-export function plural(n: number, one: string, few: string, many: string) {
-  const m10 = n % 10;
-  const m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return one;
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
-  return many;
+  if (v >= 10000)
+    return `${new Intl.NumberFormat(intlLocale(), { maximumFractionDigits: 1 }).format(v / 1000)} ${t('t')}`;
+  return `${new Intl.NumberFormat(intlLocale(), { maximumFractionDigits: 1 }).format(v)} ${t('kg')}`;
 }
 
 export function targetLabel(
@@ -68,10 +61,32 @@ export function targetLabel(
       : min
         ? `${min}+`
         : max
-          ? `до ${max}`
+          ? t('up to {n}', { n: max })
           : null;
   if (plannedSets && reps) return `${plannedSets} × ${reps}`;
-  if (plannedSets) return `${plannedSets} ${plural(plannedSets, 'подход', 'подхода', 'подходов')}`;
-  if (reps) return `${reps} повт.`;
+  if (plannedSets) return count(plannedSets, 'set');
+  if (reps) return t('{reps} reps', { reps });
   return null;
 }
+
+export const muscleLabel = (g: string) =>
+  t(
+    (
+      {
+        chest: 'Chest',
+        back: 'Back',
+        shoulders: 'Shoulders',
+        biceps: 'Biceps',
+        triceps: 'Triceps',
+        forearms: 'Forearms',
+        abs: 'Abs',
+        quads: 'Quads',
+        hamstrings: 'Hamstrings',
+        glutes: 'Glutes',
+        calves: 'Calves',
+        full_body: 'Full body',
+        cardio: 'Cardio',
+        other: 'Other',
+      } as const
+    )[g as 'chest'] ?? 'Other',
+  );

@@ -18,12 +18,24 @@ export async function callBotApi<T = unknown>(
   return json.result as T;
 }
 
-export function openAppKeyboard(url: string) {
-  return { inline_keyboard: [[{ text: '🏋️ Открыть трекер', web_app: { url } }]] };
+const TEXTS = {
+  en: {
+    button: '🏋️ Open tracker',
+    hello: 'Hi! Log your workouts here: programs, sets and progress.',
+  },
+  uk: {
+    button: '🏋️ Відкрити трекер',
+    hello: 'Привіт! Тут ти ведеш свої тренування: програми, підходи і прогрес.',
+  },
+};
+const textsFor = (languageCode?: string) => (languageCode?.startsWith('uk') ? TEXTS.uk : TEXTS.en);
+
+export function openAppKeyboard(url: string, languageCode?: string) {
+  return { inline_keyboard: [[{ text: textsFor(languageCode).button, web_app: { url } }]] };
 }
 
 interface Update {
-  message?: { chat: { id: number }; text?: string };
+  message?: { chat: { id: number }; text?: string; from?: { language_code?: string } };
 }
 
 /**
@@ -49,8 +61,8 @@ export function registerTelegramWebhook(app: Hono<AppEnv>, path: string) {
       try {
         await callBotApi(env.TELEGRAM_BOT_TOKEN, 'sendMessage', {
           chat_id: msg.chat.id,
-          text: 'Привет! Здесь ты ведёшь свои тренировки: программы, подходы и прогресс.',
-          reply_markup: openAppKeyboard(env.PUBLIC_APP_URL),
+          text: textsFor(msg.from?.language_code).hello,
+          reply_markup: openAppKeyboard(env.PUBLIC_APP_URL, msg.from?.language_code),
         });
       } catch (err) {
         console.error(

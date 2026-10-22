@@ -11,7 +11,9 @@ interface TgButton {
 }
 interface TelegramWebApp {
   initData: string;
-  initDataUnsafe?: { user?: { id: number; first_name?: string; username?: string } };
+  initDataUnsafe?: {
+    user?: { id: number; first_name?: string; username?: string; language_code?: string };
+  };
   version: string;
   platform: string;
   colorScheme: 'light' | 'dark';

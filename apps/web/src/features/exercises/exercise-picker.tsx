@@ -1,11 +1,14 @@
 'use client';
 
-import { MUSCLE_GROUP_LABELS, type ExerciseDto, type MuscleGroup } from '@gym/shared';
-import { useDeferredValue, useState } from 'react';
+import type { ExerciseDto, MuscleGroup } from '@gym/shared';
+import { useState } from 'react';
 import { CheckIcon, PlusIcon } from '@/components/icons';
 import { Button, Field, PageLoader, Sheet, cx } from '@/components/ui';
 import { useExercises } from '@/lib/queries';
 import { ExerciseFormSheet, MuscleSelect } from './exercise-form';
+import { t } from '@/i18n';
+import { muscleLabel } from '@/lib/format';
+import { useDebounced } from '@/lib/use-debounced';
 
 /**
  * Library picker. Tapping an exercise adds it right away and keeps the sheet
@@ -16,7 +19,7 @@ export function ExercisePicker({
   onClose,
   onPick,
   addedIds = [],
-  title = 'Добавить упражнения',
+  title,
 }: {
   open: boolean;
   onClose: () => void;
@@ -26,7 +29,8 @@ export function ExercisePicker({
 }) {
   const [search, setSearch] = useState('');
   const [muscle, setMuscle] = useState<MuscleGroup | ''>('');
-  const deferred = useDeferredValue(search);
+  // one request per pause in typing, not per keystroke
+  const deferred = useDebounced(search.trim());
   const { data, isLoading } = useExercises({ search: deferred, muscleGroup: muscle });
   const [creating, setCreating] = useState(false);
   const items = data ?? [];
@@ -34,14 +38,14 @@ export function ExercisePicker({
 
   return (
     <>
-      <Sheet open={open && !creating} onClose={onClose} title={title}>
+      <Sheet open={open && !creating} onClose={onClose} title={title ?? t('Add exercises')}>
         <div className="space-y-3">
           <Field
-            label="Поиск"
+            label={t('Search')}
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Название упражнения"
+            placeholder={t('Exercise name')}
           />
           <MuscleSelect value={muscle} onChange={setMuscle} allowAll />
           {isLoading ? (
@@ -55,7 +59,11 @@ export function ExercisePicker({
                     <button
                       type="button"
                       disabled={isAdded}
-                      aria-label={isAdded ? `${e.name}, уже добавлено` : `Добавить ${e.name}`}
+                      aria-label={
+                        isAdded
+                          ? t('{name}, already added', { name: e.name })
+                          : t('Add {name}', { name: e.name })
+                      }
                       className="flex min-h-14 w-full items-center gap-3 px-4 py-2.5 text-left"
                       onClick={() => onPick(e)}
                     >
@@ -65,7 +73,7 @@ export function ExercisePicker({
                         </span>
                         {e.muscleGroup && (
                           <span className="block text-[13px] text-muted">
-                            {MUSCLE_GROUP_LABELS[e.muscleGroup]}
+                            {muscleLabel(e.muscleGroup)}
                           </span>
                         )}
                       </span>
@@ -83,15 +91,20 @@ export function ExercisePicker({
                 );
               })}
               {items.length === 0 && (
-                <li className="px-4 py-6 text-center text-[15px] text-muted">Ничего не найдено</li>
+                <li className="px-4 py-6 text-center text-[15px] text-muted">
+                  {t('Nothing found')}
+                </li>
               )}
             </ul>
           )}
           <Button block variant="secondary" onClick={() => setCreating(true)}>
-            <PlusIcon /> Новое упражнение{search.trim() ? ` «${search.trim()}»` : ''}
+            <PlusIcon />{' '}
+            {search.trim()
+              ? t('New exercise “{name}”', { name: search.trim() })
+              : t('New exercise')}
           </Button>
           <Button block size="lg" onClick={onClose}>
-            Готово
+            {t('Done')}
           </Button>
         </div>
       </Sheet>

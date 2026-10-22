@@ -190,13 +190,13 @@ export async function setProgramArchived(
   return getProgram(db, userId, programId);
 }
 
-export async function duplicateProgram(db: Db, userId: string, programId: string) {
+export async function duplicateProgram(db: Db, userId: string, programId: string, name?: string) {
   const source = await getProgram(db, userId, programId);
   const id = await db.$transaction(async (tx) => {
     const copy = await tx.trainingProgram.create({
       data: {
         userId,
-        name: copyName(source.name),
+        name: name ?? copyName(source.name),
         description: source.description,
         isActive: false,
       },
@@ -216,7 +216,8 @@ export async function duplicateProgram(db: Db, userId: string, programId: string
   return getProgram(db, userId, id);
 }
 
-const copyName = (name: string) => `${name} (копия)`.slice(0, 100);
+/** Fallback when the client does not send a (localised) name for the copy. */
+const copyName = (name: string) => `${name} (copy)`.slice(0, 100);
 const copyPlannedExercise = (e: WorkoutExerciseDto) => ({
   exerciseId: e.exerciseId,
   position: e.position,
@@ -292,7 +293,7 @@ export async function reorderWorkouts(db: Db, userId: string, programId: string,
   return getProgram(db, userId, programId);
 }
 
-export async function duplicateWorkout(db: Db, userId: string, workoutId: string) {
+export async function duplicateWorkout(db: Db, userId: string, workoutId: string, name?: string) {
   const w = await ownedWorkout(db, userId, workoutId);
   await db.$transaction(async (tx) => {
     const source = await tx.programWorkout.findUniqueOrThrow({
@@ -306,7 +307,7 @@ export async function duplicateWorkout(db: Db, userId: string, workoutId: string
     await tx.programWorkout.create({
       data: {
         programId: w.programId,
-        name: copyName(source.name),
+        name: name ?? copyName(source.name),
         position: (max._max.position ?? -1) + 1,
         exercises: {
           create: source.exercises.map((e) => ({

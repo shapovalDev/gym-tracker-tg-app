@@ -42,6 +42,8 @@ function toSetDto(s: SetRow): SetDto {
     weightKg: decimalToNumber(s.weightKg),
     reps: s.reps,
     status: s.status,
+    setType: s.setType,
+    note: s.note,
     updatedAt: s.updatedAt.toISOString(),
   };
 }
@@ -53,6 +55,7 @@ function summaryOf(s: SessionRow) {
     exercises: s.exercises.map((e) => ({
       sets: e.sets.map((x) => ({
         status: x.status,
+        setType: x.setType,
         reps: x.reps,
         weightKg: decimalToNumber(x.weightKg),
       })),
@@ -63,26 +66,31 @@ function summaryOf(s: SessionRow) {
 /** Last completed result of each exercise before this session started. */
 async function previousResults(db: DbOrTx, userId: string, s: SessionRow) {
   const exerciseIds = [...new Set(s.exercises.map((e) => e.exerciseId))];
-  const found = await Promise.all(
-    exerciseIds.map((exerciseId) =>
-      db.sessionExercise.findFirst({
-        where: {
-          exerciseId,
-          sessionId: { not: s.id },
-          session: { userId, status: 'completed', startedAt: { lt: s.startedAt } },
-          sets: { some: {} },
-        },
-        orderBy: [{ session: { startedAt: 'desc' } }, { position: 'asc' }],
+  if (exerciseIds.length === 0) return new Map<string, PreviousResultDto>();
+  // One query picks the latest earlier occurrence of every exercise (warm-ups
+  // alone do not count as "trained"), a second loads those sets.
+  const latest = await db.$queryRaw<{ id: string }[]>`
+    SELECT DISTINCT ON (se."exerciseId") se.id
+    FROM "SessionExercise" se
+    JOIN "WorkoutSession" ws ON ws.id = se."sessionId"
+    WHERE se."exerciseId" = ANY(${exerciseIds}::uuid[])
+      AND ws."userId" = ${userId}::uuid
+      AND ws.status = 'completed'
+      AND ws."startedAt" < ${s.startedAt}
+      AND ws.id <> ${s.id}::uuid
+      AND EXISTS (SELECT 1 FROM "ExerciseSet" x WHERE x."sessionExerciseId" = se.id AND x."setType" = 'working')
+    ORDER BY se."exerciseId", ws."startedAt" DESC, se.position ASC`;
+  const found = latest.length
+    ? await db.sessionExercise.findMany({
+        where: { id: { in: latest.map((r) => r.id) } },
         include: {
           session: { select: { id: true, startedAt: true } },
           sets: { orderBy: [{ setNumber: 'asc' }, { createdAt: 'asc' }] },
         },
-      }),
-    ),
-  );
+      })
+    : [];
   const map = new Map<string, PreviousResultDto>();
   for (const row of found) {
-    if (!row) continue;
     map.set(row.exerciseId, {
       sessionId: row.session.id,
       date: row.session.startedAt.toISOString(),
@@ -91,6 +99,8 @@ async function previousResults(db: DbOrTx, userId: string, s: SessionRow) {
         weightKg: decimalToNumber(x.weightKg),
         reps: x.reps,
         status: x.status,
+        setType: x.setType,
+        note: x.note,
       })),
     });
   }
@@ -311,6 +321,8 @@ export async function upsertSet(
     weightKg: new Prisma.Decimal(input.weightKg.toFixed(2)),
     reps: input.reps,
     status: input.status,
+    setType: input.setType,
+    note: input.note,
   };
 
   const write = async (): Promise<{ set: SetRow; created: boolean }> => {
@@ -398,7 +410,8 @@ export async function completeSession(
       sessionExerciseId: e.id,
       name: e.exerciseNameSnapshot,
       planned: e.plannedSets ?? 0,
-      recorded: e.sets.length,
+      // planned sets are working sets; warm-ups do not fill the plan
+      recorded: e.sets.filter((x) => x.setType !== 'warmup').length,
     }))
     .filter((e) => e.recorded < Math.max(e.planned, 1));
   if (unfinished.length > 0 && !confirmIncomplete) {

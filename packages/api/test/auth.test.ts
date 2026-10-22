@@ -70,6 +70,19 @@ describe('protected endpoints', () => {
     const ids = new Set(await Promise.all(results.map(async (r) => ((await r.json()) as any).id)));
     expect(ids.size).toBe(1);
   });
+  it('store the UI language and reject unknown ones', async () => {
+    const auth = `tma ${signInitData(BOT_TOKEN, { id: 557 })}`;
+    const patch = (locale: unknown) =>
+      app.request('/api/v1/me', {
+        method: 'PATCH',
+        headers: { authorization: auth, 'content-type': 'application/json' },
+        body: JSON.stringify({ locale }),
+      });
+    expect(((await (await call(auth)).json()) as any).locale).toBeNull();
+    expect(((await (await patch('uk')).json()) as any).locale).toBe('uk');
+    expect(((await (await call(auth)).json()) as any).locale).toBe('uk');
+    expect((await patch('ru')).status).toBe(400);
+  });
   it('ignore a telegram id passed as a query parameter', async () => {
     const auth = `tma ${signInitData(BOT_TOKEN, { id: 556 })}`;
     const res = await app.request('/api/v1/me?telegramId=555', {

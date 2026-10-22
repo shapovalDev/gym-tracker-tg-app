@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
 import { ApiError } from '@/lib/api';
 import { initOutbox } from '@/lib/outbox';
+import { LocaleProvider } from '@/i18n/provider';
 import { initTelegram, tg } from '@/lib/telegram';
 
 export function Providers({ children }: { children: ReactNode }) {
@@ -12,8 +13,9 @@ export function Providers({ children }: { children: ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 15_000,
-            refetchOnWindowFocus: true,
+            // Data changes only through this app; mutations invalidate what they touch.
+            staleTime: 60_000,
+            refetchOnWindowFocus: false,
             retry: (count, e) => !(e instanceof ApiError && e.status < 500) && count < 2,
           },
           mutations: { retry: false },
@@ -40,5 +42,9 @@ export function Providers({ children }: { children: ReactNode }) {
     }
     initOutbox(client);
   }, [client]);
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={client}>
+      <LocaleProvider>{children}</LocaleProvider>
+    </QueryClientProvider>
+  );
 }

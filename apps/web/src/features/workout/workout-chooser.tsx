@@ -1,8 +1,8 @@
 'use client';
 
 import { Button, PageLoader, PlateBadge, Sheet, cx } from '@/components/ui';
-import { plural } from '@/lib/format';
 import { useProgram } from '@/lib/queries';
+import { count, t } from '@/i18n';
 
 /** Pick any workout of a program to start now (skipping is not "completing"). */
 export function WorkoutChooser({
@@ -20,7 +20,7 @@ export function WorkoutChooser({
 }) {
   const { data: program, isLoading } = useProgram(programId);
   return (
-    <Sheet open={open} onClose={onClose} title="Какую тренировку начать?">
+    <Sheet open={open} onClose={onClose} title={t('Which workout to start?')}>
       {isLoading || !program ? (
         <PageLoader />
       ) : (
@@ -43,10 +43,8 @@ export function WorkoutChooser({
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold">{w.name}</span>
                     <span className="block text-[14px] text-muted">
-                      {empty
-                        ? 'Нет упражнений'
-                        : `${w.exercises.length} ${plural(w.exercises.length, 'упражнение', 'упражнения', 'упражнений')}`}
-                      {next ? ', по циклу следующая' : ''}
+                      {empty ? t('No exercises') : count(w.exercises.length, 'exercise')}
+                      {next ? `, ${t('next in the cycle')}` : ''}
                     </span>
                   </span>
                 </button>
@@ -56,11 +54,12 @@ export function WorkoutChooser({
         </ul>
       )}
       <p className="mt-4 px-1 text-[13px] text-muted">
-        Пропущенная тренировка не засчитывается. Следующей по циклу станет та, что идёт после
-        выбранной.
+        {t(
+          'A skipped workout is not counted. The next one in the cycle will be the one after the workout you pick.',
+        )}
       </p>
       <Button block variant="secondary" className="mt-3" onClick={() => onStart('')}>
-        Свободная тренировка без плана
+        {t('Free workout without a plan')}
       </Button>
     </Sheet>
   );

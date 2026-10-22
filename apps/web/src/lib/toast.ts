@@ -19,7 +19,7 @@ export function dismissToast(id: number) {
   emit();
 }
 
-/** Short notice; with an `action` (e.g. "Вернуть") it stays a bit longer. */
+/** Short notice; with an `action` (e.g. "Undo") it stays a bit longer. */
 export function toast(text: string, tone: Toast['tone'] = 'info', action?: Toast['action']) {
   const t = { id: ++seq, text, tone, action };
   toasts = [...toasts.slice(-1), t];

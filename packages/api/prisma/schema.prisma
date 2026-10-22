@@ -25,6 +25,12 @@ enum SetStatus {
   skipped
 }
 
+/// Warm-up sets are recorded but excluded from all statistics.
+enum SetType {
+  working
+  warmup
+}
+
 enum MuscleGroup {
   chest
   back
@@ -45,6 +51,8 @@ enum MuscleGroup {
 model User {
   id         String   @id @default(uuid()) @db.Uuid
   telegramId BigInt   @unique
+  /// UI language chosen by the user ('en' | 'uk'); null = follow Telegram.
+  locale     String?  @db.VarChar(5)
   createdAt  DateTime @default(now()) @db.Timestamptz(3)
   updatedAt  DateTime @updatedAt @db.Timestamptz(3)
 
@@ -176,6 +184,9 @@ model ExerciseSet {
   weightKg          Decimal         @db.Decimal(6, 2)
   reps              Int
   status            SetStatus
+  setType           SetType         @default(working)
+  /// Optional free-text comment, up to 200 characters.
+  note              String?         @db.VarChar(200)
   createdAt         DateTime        @default(now()) @db.Timestamptz(3)
   updatedAt         DateTime        @updatedAt @db.Timestamptz(3)
 

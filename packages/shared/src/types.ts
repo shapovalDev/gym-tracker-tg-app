@@ -1,4 +1,4 @@
-import type { MuscleGroup, Period, SessionStatus, SetStatus } from './constants';
+import type { MuscleGroup, Period, SessionStatus, SetStatus, SetType } from './constants';
 import type { PersonalRecords, SessionPoint, SessionSummary } from './domain/metrics';
 
 /** API response DTOs (dates are ISO strings). */
@@ -58,13 +58,20 @@ export interface SetDto {
   weightKg: number;
   reps: number;
   status: SetStatus;
+  setType: SetType;
+  note: string | null;
   updatedAt: string;
 }
 
 export interface PreviousResultDto {
   sessionId: string;
   date: string;
-  sets: Pick<SetDto, 'setNumber' | 'weightKg' | 'reps' | 'status'>[];
+  sets: Pick<SetDto, 'setNumber' | 'weightKg' | 'reps' | 'status' | 'setType' | 'note'>[];
+}
+
+/** One past session of an exercise, for the "exercise history" sheet. */
+export interface ExerciseHistoryEntryDto extends PreviousResultDto {
+  workoutName: string | null;
 }
 
 export interface SessionExerciseDto {
@@ -112,15 +119,6 @@ export interface Paginated<T> {
   nextCursor: string | null;
 }
 
-export interface ExerciseHighlightDto {
-  exerciseId: string;
-  name: string;
-  lastDate: string;
-  lastBestE1rmKg: number | null;
-  lastMaxWeightKg: number;
-  changeE1rmPct: number | null;
-}
-
 export interface HomeDto {
   activeProgram: { id: string; name: string; workoutCount: number } | null;
   nextWorkout: {
@@ -134,12 +132,12 @@ export interface HomeDto {
   lastSession: SessionListItemDto | null;
   completedLast7Days: number;
   completedLast30Days: number;
-  highlights: ExerciseHighlightDto[];
 }
 
 export interface MeDto {
   id: string;
   telegramId: string;
+  locale: 'en' | 'uk' | null;
   createdAt: string;
 }
 

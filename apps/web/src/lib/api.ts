@@ -1,4 +1,5 @@
 import type { ApiError as ApiErrorBody } from '@gym/shared';
+import { t, type MsgKey } from '@/i18n';
 import { getInitData } from './telegram';
 
 export class ApiError extends Error {
@@ -66,16 +67,22 @@ export const http = {
 };
 
 export function errorMessage(e: unknown): string {
-  if (e instanceof NetworkError) return 'Нет связи с сервером';
+  if (e instanceof NetworkError) return t('No connection to the server');
   if (e instanceof ApiError) {
-    if (e.status === 401) return 'Не удалось авторизоваться через Telegram';
-    if (e.code === 'VALIDATION_ERROR') {
-      const first = (e.details as { message: string }[] | undefined)?.[0];
-      return first ? `Проверьте данные: ${first.message}` : 'Проверьте введённые данные';
-    }
-    return e.message;
+    if (e.status === 401) return t('Could not sign in with Telegram');
+    if (e.code === 'VALIDATION_ERROR') return t('Check the entered data');
+    const known: Partial<Record<string, MsgKey>> = {
+      SESSION_IN_PROGRESS: 'Finish or cancel the current workout first',
+      SESSION_CANCELLED: 'This workout was cancelled and can no longer be changed',
+      EXERCISE_ARCHIVED: 'Archived exercises cannot be added',
+      PROGRAM_ARCHIVED: 'Restore the program from the archive first',
+      TOO_MANY_SETS: 'Too many sets for one exercise',
+      NOT_FOUND: 'Not found. It may have been deleted.',
+    };
+    const key = known[e.code];
+    return key ? t(key) : t('Something went wrong');
   }
   if (e instanceof Error && e.message === 'NOT_IN_TELEGRAM')
-    return 'Откройте приложение через Telegram-бота';
-  return 'Что-то пошло не так';
+    return t('Open the app from the Telegram bot');
+  return t('Something went wrong');
 }

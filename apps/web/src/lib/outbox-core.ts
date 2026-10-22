@@ -1,4 +1,4 @@
-import type { SessionDto, SetDto, SetStatus } from '@gym/shared';
+import type { SessionDto, SetDto, SetStatus, SetType } from '@gym/shared';
 
 /**
  * Pure logic of the offline outbox for set mutations.
@@ -11,6 +11,8 @@ export interface SetBody {
   weightKg: number;
   reps: number;
   status: SetStatus;
+  setType: SetType;
+  note: string | null;
 }
 
 export type OutboxOp =
@@ -52,6 +54,8 @@ export function applyPending(session: SessionDto, queue: readonly OutboxOp[]): S
         weightKg: op.body.weightKg,
         reps: op.body.reps,
         status: op.body.status,
+        setType: op.body.setType,
+        note: op.body.note,
         updatedAt: new Date(op.queuedAt).toISOString(),
         pending: true,
       };

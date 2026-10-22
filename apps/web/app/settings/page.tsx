@@ -3,11 +3,14 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { ChevronRight } from '@/components/icons';
-import { Button, Card, PageHeader, Section } from '@/components/ui';
+import { Button, Card, PageHeader, Section, Segmented } from '@/components/ui';
+import { count, LOCALE_NAMES, LOCALES, t, type Locale } from '@/i18n';
+import { useLocale } from '@/i18n/provider';
 import { flush, useOutbox } from '@/lib/outbox';
 import { tg } from '@/lib/telegram';
 
 export default function SettingsPage() {
+  const { locale, setLocale } = useLocale();
   const { queue, lastError } = useOutbox();
   const [env, setEnv] = useState<{ inTelegram: boolean; version?: string; platform?: string }>({
     inTelegram: false,
@@ -19,42 +22,57 @@ export default function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="Ещё" />
+      <PageHeader title={t('More')} />
       <Card className="divide-y divide-line overflow-hidden">
-        <Row href="/exercises" label="Упражнения" hint="Библиотека, техника, архив" />
-        <Row href="/programs" label="Программы" hint="Тренировки и цикл" />
+        <Row href="/exercises" label={t('Exercises')} hint={t('Library, technique, archive')} />
+        <Row href="/programs" label={t('Programs')} hint={t('Workouts and the cycle')} />
       </Card>
 
-      <Section title="Сохранение">
+      <Section title={t('Language')}>
+        <Segmented<Locale>
+          label={t('Language')}
+          value={locale}
+          onChange={setLocale}
+          options={LOCALES.map((l) => ({ value: l, label: LOCALE_NAMES[l] }))}
+        />
+      </Section>
+
+      <Section title={t('Saving')}>
         <Card className="space-y-3 p-4">
           <p className="text-[15px]">
             {queue.length === 0
-              ? 'Все данные сохранены на сервере.'
-              : `${queue.length} изменений ждут отправки${lastError === 'offline' ? ': нет сети' : ''}.`}
+              ? t('All data is saved on the server.')
+              : t('{changes} waiting to be sent', { changes: count(queue.length, 'change') }) +
+                (lastError === 'offline' ? `: ${t('offline')}.` : '.')}
           </p>
           {queue.length > 0 && (
             <Button size="sm" variant="soft" onClick={() => flush()}>
-              Отправить сейчас
+              {t('Send now')}
             </Button>
           )}
         </Card>
       </Section>
 
-      <Section title="Как считается статистика">
+      <Section title={t('How statistics are calculated')}>
         <Card className="space-y-2 p-4 text-[15px]">
           <p>
-            Учитываются только выполненные подходы, хотя бы с одним повтором, из завершённых
-            тренировок.
+            {t(
+              'Only completed working sets with at least one rep from finished workouts are counted. Warm-up sets are not.',
+            )}
           </p>
-          <p>Объём — это сумма «вес × повторы».</p>
-          <p>Длительность — время от старта до завершения тренировки. Вес — в килограммах.</p>
+          <p>{t('Volume is the sum of weight × reps.')}</p>
+          <p>
+            {t(
+              'Duration is the time from start to finish of the workout. Weights are in kilograms.',
+            )}
+          </p>
         </Card>
       </Section>
 
       <p className="px-1 text-[13px] text-muted">
         {env.inTelegram
           ? `Telegram ${env.platform}, Bot API ${env.version}`
-          : 'Открыто вне Telegram (режим разработки)'}
+          : t('Opened outside Telegram (development mode)')}
       </p>
     </>
   );

@@ -1,5 +1,6 @@
 'use client';
 
+import { t } from '@/i18n';
 import { ArrowDown, ArrowUp } from './icons';
 import { IconButton } from './ui';
 
@@ -18,14 +19,14 @@ export function ReorderButtons({
   return (
     <div className="flex shrink-0">
       <IconButton
-        label={`Переместить «${label}» выше`}
+        label={t('Move “{name}” up', { name: label })}
         disabled={index === 0}
         onClick={() => onMove(index, index - 1)}
       >
         <ArrowUp />
       </IconButton>
       <IconButton
-        label={`Переместить «${label}» ниже`}
+        label={t('Move “{name}” down', { name: label })}
         disabled={index === count - 1}
         onClick={() => onMove(index, index + 1)}
       >

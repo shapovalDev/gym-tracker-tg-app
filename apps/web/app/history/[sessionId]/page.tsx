@@ -1,6 +1,6 @@
 'use client';
 
-import type { SessionDto, SetDto } from '@gym/shared';
+import { setLabels, setsOfType, type SessionDto, type SetDto } from '@gym/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -19,6 +19,7 @@ import { errorMessage, http } from '@/lib/api';
 import { formatDate, formatDuration, formatTime, formatVolume } from '@/lib/format';
 import { useApiMutation } from '@/lib/mutations';
 import { queryKeys, useSession } from '@/lib/queries';
+import { t } from '@/i18n';
 
 const STATS = [['home'], ['history'], ['analytics'], ['summary']];
 
@@ -48,12 +49,14 @@ export default function SessionDetailPage() {
         sessionExerciseId: exerciseId,
         setNumber: set?.setNumber ?? number,
         weightKg: v.weightKg,
+        setType: v.setType,
+        note: v.note,
         reps: v.reps,
         status: v.status,
       }),
     {
       invalidate: STATS,
-      success: 'Сохранено',
+      success: t('Saved'),
       onSuccess: () => {
         setEditing(null);
         void refresh();
@@ -72,7 +75,7 @@ export default function SessionDetailPage() {
   );
   const removeSession = useApiMutation(() => http.del(`/sessions/${sessionId}`), {
     invalidate: STATS,
-    success: 'Тренировка удалена',
+    success: t('Workout deleted'),
     onSuccess: () => {
       qc.removeQueries({ queryKey: queryKeys.session(sessionId) });
       router.replace('/history');
@@ -86,80 +89,92 @@ export default function SessionDetailPage() {
   return (
     <>
       <PageHeader
-        title={s.workoutName ?? 'Свободная тренировка'}
+        title={s.workoutName ?? t('Free workout')}
         subtitle={`${formatDate(s.startedAt)}, ${formatTime(s.startedAt)}${s.programName ? `, ${s.programName}` : ''}`}
       />
       {s.status === 'cancelled' && (
         <p className="rounded-2xl bg-skip-soft px-4 py-3 text-[15px]">
-          Тренировка была отменена и не учитывается в статистике.
+          {t('This workout was cancelled and is not counted in statistics.')}
         </p>
       )}
       <SummaryGrid s={s} />
-      {s.exercises.map((e) => (
-        <Section key={e.id} title={e.name}>
-          <ul className="space-y-2">
-            {e.sets.map((set) =>
-              editing?.set?.id === set.id ? (
-                <li key={set.id}>
-                  <SetEntry
-                    key={`edit-${set.id}`}
-                    setNumber={set.setNumber}
-                    initial={set}
-                    submitLabel="Сохранить"
-                    onCancel={() => setEditing(null)}
-                    onSubmit={(v) =>
-                      saveSet.mutate({ v, set, exerciseId: e.id, number: set.setNumber })
-                    }
+      {s.exercises.map((e) => {
+        const labels = setLabels(e.sets, t('W'));
+        return (
+          <Section key={e.id} title={e.name}>
+            <ul className="space-y-2">
+              {e.sets.map((set) =>
+                editing?.set?.id === set.id ? (
+                  <li key={set.id}>
+                    <SetEntry
+                      key={`edit-${set.id}`}
+                      title={t('Edit: {name}', {
+                        name:
+                          set.setType === 'warmup'
+                            ? t('Warm-up {n}', { n: (labels.get(set) ?? '').replace(/^\D+/, '') })
+                            : t('Set {n}', { n: labels.get(set) ?? '' }),
+                      })}
+                      initial={set}
+                      submitLabel={t('Save')}
+                      onCancel={() => setEditing(null)}
+                      onSubmit={(v) =>
+                        saveSet.mutate({ v, set, exerciseId: e.id, number: set.setNumber })
+                      }
+                    />
+                  </li>
+                ) : (
+                  <SetRow
+                    key={set.id}
+                    set={set}
+                    label={labels.get(set) ?? ''}
+                    onEdit={editable ? () => setEditing({ set, exerciseId: e.id }) : undefined}
+                    onDelete={editable ? () => setDeletingSet(set) : undefined}
                   />
-                </li>
-              ) : (
-                <SetRow
-                  key={set.id}
-                  set={set}
-                  onEdit={editable ? () => setEditing({ set, exerciseId: e.id }) : undefined}
-                  onDelete={editable ? () => setDeletingSet(set) : undefined}
+                ),
+              )}
+              {e.sets.length === 0 && (
+                <li className="px-1 text-[14px] text-muted">{t('No sets recorded')}</li>
+              )}
+            </ul>
+            {editable &&
+              (editing && !editing.set && editing.exerciseId === e.id ? (
+                <SetEntry
+                  key={`add-${e.id}`}
+                  counts={{
+                    working: setsOfType(e.sets, 'working').length,
+                    warmup: setsOfType(e.sets, 'warmup').length,
+                  }}
+                  suggestion={e.sets.at(-1)}
+                  submitLabel={t('Add')}
+                  onCancel={() => setEditing(null)}
+                  onSubmit={(v) =>
+                    saveSet.mutate({ v, set: null, exerciseId: e.id, number: e.sets.length + 1 })
+                  }
                 />
-              ),
-            )}
-            {e.sets.length === 0 && (
-              <li className="px-1 text-[14px] text-muted">Подходы не записаны</li>
-            )}
-          </ul>
-          {editable &&
-            (editing && !editing.set && editing.exerciseId === e.id ? (
-              <SetEntry
-                key={`add-${e.id}`}
-                setNumber={e.sets.length + 1}
-                suggestion={e.sets.at(-1)}
-                submitLabel="Добавить"
-                onCancel={() => setEditing(null)}
-                onSubmit={(v) =>
-                  saveSet.mutate({ v, set: null, exerciseId: e.id, number: e.sets.length + 1 })
-                }
-              />
-            ) : (
-              <Button
-                size="sm"
-                variant="soft"
-                onClick={() => setEditing({ set: null, exerciseId: e.id })}
-              >
-                Добавить подход
-              </Button>
-            ))}
-        </Section>
-      ))}
+              ) : (
+                <Button
+                  size="sm"
+                  variant="soft"
+                  onClick={() => setEditing({ set: null, exerciseId: e.id })}
+                >
+                  {t('Add set')}
+                </Button>
+              ))}
+          </Section>
+        );
+      })}
       <p className="px-1 text-[13px] text-muted">
-        Нажмите на подход, чтобы исправить вес или повторы. Статистика пересчитается сразу.
+        {t('Tap a set to fix the weight or reps. Statistics update immediately.')}
       </p>
       <Button block variant="danger" onClick={() => setDeleting(true)}>
-        Удалить тренировку
+        {t('Delete workout')}
       </Button>
       <ConfirmSheet
         open={deleting}
         onClose={() => setDeleting(false)}
-        title="Удалить тренировку?"
-        text="Все подходы будут удалены, статистика пересчитается. Это действие нельзя отменить."
-        confirmLabel="Удалить"
+        title={t('Delete the workout?')}
+        text={t('All sets will be deleted and statistics recalculated. This cannot be undone.')}
+        confirmLabel={t('Delete')}
         danger
         loading={removeSession.isPending}
         onConfirm={() => removeSession.mutate(undefined)}
@@ -167,8 +182,8 @@ export default function SessionDetailPage() {
       <ConfirmSheet
         open={!!deletingSet}
         onClose={() => setDeletingSet(null)}
-        title={`Удалить подход ${deletingSet?.setNumber ?? ''}?`}
-        confirmLabel="Удалить"
+        title={t('Delete this set?')}
+        confirmLabel={t('Delete')}
         danger
         loading={removeSet.isPending}
         onConfirm={() => deletingSet && removeSet.mutate(deletingSet)}
@@ -180,13 +195,15 @@ export default function SessionDetailPage() {
 function SummaryGrid({ s }: { s: SessionDto }) {
   return (
     <div className="grid grid-cols-2 gap-3">
-      <Stat label="Общая длительность" value={formatDuration(s.summary.durationSeconds)} />
-      <Stat label="Объём" value={formatVolume(s.summary.volumeKg)} />
-      <Stat label="Упражнений" value={s.summary.exercisesCompleted} />
+      <Stat label={t('Total duration')} value={formatDuration(s.summary.durationSeconds)} />
+      <Stat label={t('Volume')} value={formatVolume(s.summary.volumeKg)} />
+      <Stat label={t('Exercises')} value={s.summary.exercisesCompleted} />
       <Stat
-        label="Подходов"
+        label={t('Sets')}
         value={s.summary.totalSets}
-        sub={s.summary.skippedSets ? `пропущено: ${s.summary.skippedSets}` : undefined}
+        sub={
+          s.summary.skippedSets ? t('{n} more skipped', { n: s.summary.skippedSets }) : undefined
+        }
       />
     </div>
   );

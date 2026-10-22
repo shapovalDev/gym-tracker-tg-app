@@ -11,9 +11,11 @@ Zod · TanStack Query · Recharts · Tailwind CSS 4 · Vitest · Testing Library
 
 ## Features
 
+- English and Ukrainian interface (More → Language; saved per user).
 - Programs with any number of workouts, ordering, duplication, archive, switching the active program.
 - Personal exercise library with muscle groups, technique notes, search and archive.
 - One-handed workout screen: large weight/reps steppers, "last time", notes, edit/delete/skip sets,
+  warm-up sets (not counted in statistics), set comments, "last time" per set and full exercise history,
   offline queue without data loss or duplicates, workout summary.
 - History with a date filter, editing results and deleting sessions.
 - Progress: max weight, reps at a selected weight, volume, personal records, comparison with the previous period.
@@ -92,7 +94,7 @@ Swagger UI: http://localhost:3000/api/docs.
    ```
    This sets the webhook (`/api/v1/telegram/webhook`, replies to `/start` with a button), the menu button that
    opens the Mini App, and the `/start` command.
-5. Open the bot in Telegram → "Тренировка" button.
+5. Open the bot in Telegram → "Workout" menu button.
 
 > A free Supabase project pauses after ~7 days without requests — restore it from the dashboard.
 > Vercel Hobby is for non-commercial use; move to Vercel Pro or Docker hosting once other people use the app.

@@ -7,7 +7,10 @@ import {
   PERIODS,
   REPS_MAX,
   SESSION_STATUSES,
+  SET_NOTE_MAX,
   SET_STATUSES,
+  SET_TYPES,
+  LOCALES,
   WEIGHT_MAX_KG,
   WEIGHT_MIN_KG,
 } from './constants';
@@ -27,6 +30,7 @@ const optionalText = z
 export const muscleGroupSchema = z.enum(MUSCLE_GROUPS);
 export const sessionStatusSchema = z.enum(SESSION_STATUSES);
 export const setStatusSchema = z.enum(SET_STATUSES);
+export const setTypeSchema = z.enum(SET_TYPES);
 export const periodSchema = z.enum(PERIODS);
 
 export const weightKgSchema = z
@@ -35,6 +39,10 @@ export const weightKgSchema = z
   .max(WEIGHT_MAX_KG)
   .transform(roundWeightKg);
 export const repsSchema = z.number().int('Reps must be a whole number').min(0).max(REPS_MAX);
+
+export const meUpdateSchema = z.object({ locale: z.enum(LOCALES).nullable() });
+/** Optional name for a copy (the client sends it in the user's language). */
+export const duplicateSchema = z.object({ name: name.optional() });
 
 // ---- Exercises -------------------------------------------------------------
 export const exerciseCreateSchema = z.object({
@@ -130,6 +138,13 @@ export const setUpsertSchema = z
     weightKg: weightKgSchema,
     reps: repsSchema,
     status: setStatusSchema,
+    setType: setTypeSchema.default('working'),
+    note: z
+      .string()
+      .trim()
+      .max(SET_NOTE_MAX)
+      .nullish()
+      .transform((v) => (v ? v : null)),
   })
   .refine((s) => s.status !== 'completed' || s.reps >= 1, {
     message: 'A completed set needs at least 1 repetition',
@@ -148,6 +163,9 @@ export const sessionListQuerySchema = z.object({
 export const analyticsQuerySchema = z.object({
   period: periodSchema.default('90d'),
   weightKg: z.coerce.number().min(0).max(WEIGHT_MAX_KG).optional(),
+});
+export const exerciseHistoryQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(20).optional(),
 });
 export const summaryQuerySchema = z.object({ period: periodSchema.default('30d') });
 
