@@ -173,3 +173,15 @@ input[type='number'] {
     transform: none;
   }
 }
+
+/* iOS gives native date inputs an intrinsic min width and centred text. */
+input[type='date'] {
+  min-width: 0;
+  display: block;
+  -webkit-appearance: none;
+  appearance: none;
+  text-align: left;
+}
+input[type='date']::-webkit-date-and-time-value {
+  text-align: left;
+}

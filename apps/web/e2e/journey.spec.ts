@@ -250,8 +250,53 @@ test('the interface language can be switched to Ukrainian and back, and is remem
   await expect(page.getByRole('navigation').getByRole('link', { name: 'Головна' })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Ще' })).toBeVisible();
+  await page.goto('/progress');
+  await expect(page.getByRole('button', { name: 'Вага', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Обсяг', exact: true })).toBeVisible();
+  await page.goto('/settings');
   await page.getByRole('radio', { name: 'English' }).click();
   await expect(page.getByRole('heading', { name: 'More' })).toBeVisible();
+});
+
+test('the exercise picker keeps focus and stays open while the workout clock ticks', async ({
+  page,
+}) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Start workout' }).click();
+  await page.getByRole('button', { name: 'Exercise', exact: true }).click();
+  const search = page.getByRole('dialog').getByRole('searchbox', { name: 'Search' });
+  await search.click();
+  // type slowly across several clock ticks
+  for (const ch of 'Жим') {
+    await page.keyboard.type(ch);
+    await page.waitForTimeout(1200);
+  }
+  await expect(search).toBeFocused();
+  await expect(search).toHaveValue('Жим');
+  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('button', { name: 'Done' }).click();
+  await page.getByRole('button', { name: 'Workout actions' }).click();
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: /Cancel workout/ })
+    .click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Cancel workout' }).click();
+});
+
+test('history period filters load instead of spinning forever', async ({ page }) => {
+  await page.goto('/history');
+  for (const period of ['30 days', '90 days']) {
+    await page.getByRole('button', { name: period }).click();
+    await expect(page.getByRole('status', { name: 'Loading' })).toBeHidden({ timeout: 5000 });
+    await expect(page.getByRole('main').getByRole('link').first()).toBeVisible();
+  }
+  await page.getByRole('button', { name: 'Custom…' }).click();
+  await expect(page.getByLabel('From')).toBeVisible();
+  // the two date fields fit the phone width
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(0);
 });
 
 test('layout fits a small phone without horizontal scroll', async ({ page }) => {

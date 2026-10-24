@@ -385,13 +385,20 @@ export function Sheet({
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  // Callers pass inline handlers that change on every render; keep the latest
+  // one in a ref so the effect below runs only when the sheet opens. Re-running
+  // it on each render used to steal focus from inputs inside the sheet (and
+  // close the keyboard on phones) whenever the parent re-rendered.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onCloseRef.current();
     window.addEventListener('keydown', onKey);
-    ref.current?.focus();
+    // move focus into the sheet only if nothing inside it is focused yet (autoFocus wins)
+    if (!ref.current?.contains(document.activeElement)) ref.current?.focus();
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+  }, [open]);
   if (!open) return null;
   return (
     <div

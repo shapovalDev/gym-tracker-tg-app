@@ -174,7 +174,7 @@ function Progress() {
                     active={metric === m.value}
                     onClick={() => setMetric(m.value)}
                   >
-                    {m.label}
+                    {t(m.label)}
                   </Chip>
                 ))}
               </div>

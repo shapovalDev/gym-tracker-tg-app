@@ -94,7 +94,6 @@ function ActiveWorkout({
 }) {
   const router = useRouter();
   const qc = useQueryClient();
-  const elapsed = useElapsed(session.startedAt);
   const [openId, setOpenId] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
   const [menu, setMenu] = useState(false);
@@ -181,7 +180,7 @@ function ActiveWorkout({
     <header className="flex items-start justify-between gap-2 px-1 pt-3">
       <div className="min-w-0">
         <p className="num text-[15px] text-muted" aria-label={t('Workout duration')}>
-          {formatClock(elapsed)}
+          <WorkoutClock startedAt={session.startedAt} />
         </p>
         <h1 className="font-display truncate text-[22px] leading-tight font-semibold">
           {session.workoutName ?? t('Free workout')}
@@ -370,6 +369,11 @@ function ActiveWorkout({
       />
     </>
   );
+}
+
+/** Only this tiny component re-renders every second, not the whole workout screen. */
+function WorkoutClock({ startedAt }: { startedAt: string }) {
+  return <>{formatClock(useElapsed(startedAt))}</>;
 }
 
 function ExerciseView({

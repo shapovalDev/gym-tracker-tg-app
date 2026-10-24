@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Button,
   Chip,
@@ -32,12 +32,18 @@ export default function HistoryPage() {
   const [range, setRange] = useState<Range>('all');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
-  const filter =
-    range === 'custom'
-      ? { from: from ? dayStart(from) : undefined, to: to ? dayEnd(to) : undefined }
-      : range === 'all'
-        ? {}
-        : { from: new Date(Date.now() - Number(range) * 86400000).toISOString() };
+  // The filter is part of the query key, so it must not change between renders:
+  // "last N days" starts at local midnight instead of "now minus N days" (which
+  // produced a new key — and a new request — on every render).
+  const filter = useMemo(() => {
+    if (range === 'custom')
+      return { from: from ? dayStart(from) : undefined, to: to ? dayEnd(to) : undefined };
+    if (range === 'all') return {};
+    const d = new Date();
+    return {
+      from: new Date(d.getFullYear(), d.getMonth(), d.getDate() - Number(range) + 1).toISOString(),
+    };
+  }, [range, from, to]);
   const { data, isLoading, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useHistory(filter);
   const items = data?.pages.flatMap((p) => p.items) ?? [];
@@ -64,7 +70,7 @@ export default function HistoryPage() {
         ))}
       </div>
       {range === 'custom' && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 min-[420px]:grid-cols-2">
           <Field
             label={t('From')}
             type="date"
