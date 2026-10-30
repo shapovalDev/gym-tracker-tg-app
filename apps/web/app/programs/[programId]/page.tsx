@@ -25,6 +25,7 @@ import {
   TextArea,
 } from '@/components/ui';
 import { errorMessage, http } from '@/lib/api';
+import { weekdayLong, weekdayShort } from '@/lib/format';
 import { useApiMutation } from '@/lib/mutations';
 import { queryKeys, useProgram } from '@/lib/queries';
 import { count, t } from '@/i18n';
@@ -100,7 +101,12 @@ export default function ProgramPage() {
       {!program.isActive && !program.archivedAt && (
         <Card className="flex items-center justify-between gap-3 p-4">
           <p className="text-[15px]">{t('Another program is shown on Home now.')}</p>
-          <Button size="sm" onClick={() => activate.mutate(undefined)} loading={activate.isPending}>
+          <Button
+            size="sm"
+            className="shrink-0 whitespace-nowrap"
+            onClick={() => activate.mutate(undefined)}
+            loading={activate.isPending}
+          >
             {t('Make active')}
           </Button>
         </Card>
@@ -134,15 +140,25 @@ export default function ProgramPage() {
                 <>
                   <PlateBadge index={i} />
                   <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-2">
-                      <span className="truncate text-[17px] font-semibold">{w.name}</span>
-                      {next && (
-                        <span className="shrink-0 rounded-full bg-primary-soft px-2 py-0.5 text-[12px] font-semibold text-primary">
-                          {t('next')}
-                        </span>
-                      )}
-                    </span>
-                    <span className="mt-0.5 line-clamp-2 text-[14px] text-muted">
+                    <span className="block truncate text-[16px] font-bold">{w.name}</span>
+                    {(next || w.weekday != null) && (
+                      <span className="mt-1 flex items-center gap-1.5">
+                        {w.weekday != null && (
+                          <span
+                            className="rounded-md border border-line px-1.5 py-px text-[12px] font-bold"
+                            title={weekdayLong(w.weekday)}
+                          >
+                            {weekdayShort(w.weekday)}
+                          </span>
+                        )}
+                        {next && (
+                          <span className="rounded-md bg-accent px-1.5 py-px text-[11px] font-bold tracking-[0.08em] text-on-accent uppercase">
+                            {t('next')}
+                          </span>
+                        )}
+                      </span>
+                    )}
+                    <span className="mt-0.5 line-clamp-2 text-[13px] text-muted">
                       {w.exercises.length
                         ? w.exercises.map((e) => e.exercise.name).join(', ')
                         : t('No exercises, tap to add')}
@@ -153,7 +169,7 @@ export default function ProgramPage() {
               return (
                 <li key={w.id}>
                   {ordering ? (
-                    <div className="flex items-center gap-3 rounded-[22px] border border-line bg-card py-3 pr-1 pl-3">
+                    <div className="flex items-center gap-3 rounded-[18px] border border-line bg-card py-3 pr-1 pl-3">
                       {body}
                       <ReorderButtons
                         index={i}
@@ -165,7 +181,7 @@ export default function ProgramPage() {
                   ) : (
                     <Link
                       href={`/programs/${programId}/workouts/${w.id}`}
-                      className={`press flex items-center gap-3 rounded-[22px] border bg-card py-3 pr-3 pl-3 ${next ? 'border-primary' : 'border-line'}`}
+                      className={`press flex items-center gap-3 rounded-[18px] bg-card py-3 pr-3 pl-3 ${next ? 'border-2 border-ink' : 'border border-line'}`}
                     >
                       {body}
                       <span className="text-muted">
@@ -190,6 +206,7 @@ export default function ProgramPage() {
       <BottomBar>
         <Button
           variant={workouts.length ? 'secondary' : 'primary'}
+          size="lg"
           className="flex-1"
           onClick={() => setAdding(true)}
         >

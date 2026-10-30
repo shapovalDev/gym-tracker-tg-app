@@ -33,18 +33,18 @@ export function SetRow({
   return (
     <li
       className={cx(
-        'flex items-center gap-3 rounded-2xl border py-1.5 pr-1 pl-3',
+        'flex items-center gap-3 rounded-[14px] border py-1 pr-1 pl-3',
         warmup
           ? 'border-dashed border-line bg-card'
           : done
-            ? 'border-done/30 bg-done-soft'
+            ? 'border-transparent bg-done-soft'
             : 'border-line bg-inset',
       )}
     >
       <span
         className={cx(
-          'num grid size-9 shrink-0 place-items-center rounded-full text-[14px] font-semibold',
-          warmup ? 'bg-skip-soft text-skip' : done ? 'bg-done text-white' : 'bg-card text-muted',
+          'num grid size-[28px] shrink-0 place-items-center rounded-full text-[14px] font-bold',
+          warmup ? 'bg-skip-soft text-skip' : done ? 'bg-done text-on-done' : 'bg-card text-muted',
         )}
         aria-label={`${name} ${done ? t('done') : t('skipped')}`}
       >
@@ -59,7 +59,7 @@ export function SetRow({
       >
         {done ? (
           <span
-            className={cx('num font-semibold', warmup ? 'text-[18px] text-muted' : 'text-[22px]')}
+            className={cx('num font-semibold', warmup ? 'text-[19px] text-muted' : 'text-[23px]')}
           >
             {formatWeight(set.weightKg)}
             <span className="font-sans text-[15px] font-medium text-muted"> {t('kg')} × </span>
@@ -97,14 +97,14 @@ export function LastTimeButton({
     <button
       type="button"
       onClick={onOpen}
-      className="press flex w-full items-center gap-3 rounded-2xl border border-line bg-card px-4 py-3 text-left"
+      className="press flex w-full items-center gap-3 rounded-[14px] border border-line bg-card px-3.5 py-2.5 text-left"
     >
       <span className="min-w-0 flex-1">
-        <span className="block text-[13px] text-muted">
+        <span className="block text-[12px] text-muted">
           {previous && date ? t('Last time, {date}', { date }) : t('Exercise history')}
         </span>
         {previous ? (
-          <span className="num mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[16px] font-semibold">
+          <span className="num mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[18px] font-semibold">
             {working.map((s) => (
               <span
                 key={s.setNumber}
@@ -123,7 +123,7 @@ export function LastTimeButton({
           <span className="block text-[15px]">{t('First time: no previous results')}</span>
         )}
       </span>
-      <span className="flex shrink-0 items-center gap-0.5 text-[14px] font-semibold text-primary">
+      <span className="flex shrink-0 items-center gap-0.5 text-[13px] font-bold">
         {t('All')}
         <ChevronRight />
       </span>
@@ -137,11 +137,14 @@ export function SetDots({ done, planned }: { done: number; planned: number }) {
   if (total === 0) return null;
   return (
     <span
-      className="flex gap-1"
+      className="flex gap-[3px]"
       aria-label={t('{done} of {total} sets', { done, total: planned || done })}
     >
       {Array.from({ length: Math.min(total, 10) }, (_, i) => (
-        <span key={i} className={cx('size-2 rounded-full', i < done ? 'bg-done' : 'bg-line')} />
+        <span
+          key={i}
+          className={cx('h-1.5 w-3.5 rounded-full', i < done ? 'bg-done' : 'bg-muted/30')}
+        />
       ))}
     </span>
   );

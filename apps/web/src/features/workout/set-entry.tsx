@@ -2,7 +2,9 @@
 
 import { formatWeight, parseWeightInput, REPS_MAX, SET_NOTE_MAX, type SetType } from '@gym/shared';
 import { useId, useState } from 'react';
+import { CheckIcon } from '@/components/icons';
 import { Button, cx } from '@/components/ui';
+import { haptic } from '@/lib/telegram';
 import { t } from '@/i18n';
 
 export interface SetEntryValue {
@@ -31,6 +33,7 @@ function Stepper({
   inputMode,
   unit,
   invalid,
+  big,
 }: {
   label: string;
   value: string;
@@ -39,63 +42,71 @@ function Stepper({
   inputMode: 'decimal' | 'numeric';
   unit: string;
   invalid?: boolean;
+  /** The weight: the largest number on the screen. */
+  big?: boolean;
 }) {
   const id = useId();
   const bump = (dir: 1 | -1) => {
     const current = Number(value.replace(',', '.')) || 0;
     const next = Math.max(0, Math.round((current + dir * step) * 100) / 100);
+    haptic.select();
     onChange(inputMode === 'numeric' ? String(Math.round(next)) : formatWeight(next));
   };
+  const button = cx(
+    'press grid shrink-0 place-items-center rounded-full bg-inset font-semibold text-ink',
+    big ? 'size-[58px] text-[28px]' : 'size-[50px] text-[24px]',
+  );
   return (
-    <div className="min-w-0 flex-1">
-      <label htmlFor={id} className="mb-1.5 block text-center text-[14px] font-medium text-muted">
-        {label}
-      </label>
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        aria-label={t('{name}: decrease by {step}', { name: label, step })}
+        onClick={() => bump(-1)}
+        className={button}
+      >
+        −
+      </button>
       <div
         className={cx(
-          'flex items-center rounded-2xl border border-line bg-inset',
+          'flex min-w-0 flex-1 flex-col items-center rounded-xl py-0.5',
           invalid && 'ring-2 ring-danger',
         )}
       >
-        <button
-          type="button"
-          aria-label={t('{name}: decrease by {step}', { name: label, step })}
-          onClick={() => bump(-1)}
-          className="press grid h-14 w-12 shrink-0 place-items-center text-2xl font-semibold text-muted"
+        <input
+          id={id}
+          value={value}
+          onChange={(e) => onChange(e.target.value.replace(/[^\d.,]/g, ''))}
+          onFocus={(e) => e.target.select()}
+          inputMode={inputMode}
+          enterKeyHint="done"
+          autoComplete="off"
+          placeholder="0"
+          className={cx(
+            'num w-full min-w-0 bg-transparent text-center leading-none font-bold outline-none',
+            // long values ("142.5") shrink instead of being clipped on narrow phones
+            big
+              ? value.length >= 5
+                ? 'h-[60px] text-[46px]'
+                : 'h-[60px] text-[60px]'
+              : 'h-[44px] text-[42px]',
+          )}
+        />
+        <label
+          htmlFor={id}
+          className="mt-1 text-[11px] font-semibold tracking-[0.12em] text-muted uppercase"
         >
-          −
-        </button>
-        <div className="flex min-w-0 flex-1 items-baseline justify-center">
-          <input
-            id={id}
-            value={value}
-            onChange={(e) => onChange(e.target.value.replace(/[^\d.,]/g, ''))}
-            onFocus={(e) => e.target.select()}
-            inputMode={inputMode}
-            enterKeyHint="done"
-            autoComplete="off"
-            placeholder="0"
-            className={cx(
-              'num w-full min-w-0 bg-transparent text-center font-semibold outline-none',
-              // long values ("142.5") shrink instead of being clipped on narrow phones
-              value.length >= 5
-                ? 'text-[20px]'
-                : value.length === 4
-                  ? 'text-[23px]'
-                  : 'text-[28px]',
-            )}
-          />
-        </div>
+          {label}
+        </label>
         <span className="sr-only">{unit}</span>
-        <button
-          type="button"
-          aria-label={t('{name}: increase by {step}', { name: label, step })}
-          onClick={() => bump(1)}
-          className="press grid h-14 w-12 shrink-0 place-items-center text-2xl font-semibold text-muted"
-        >
-          +
-        </button>
       </div>
+      <button
+        type="button"
+        aria-label={t('{name}: increase by {step}', { name: label, step })}
+        onClick={() => bump(1)}
+        className={button}
+      >
+        +
+      </button>
     </div>
   );
 }
@@ -151,7 +162,11 @@ export function SetEntry({
 
   const submit = (status: 'completed' | 'skipped') => {
     setTouched(true);
-    if (status === 'completed' && (weightError || repsError)) return;
+    if (status === 'completed' && (weightError || repsError)) {
+      haptic.error();
+      return;
+    }
+    if (status === 'completed') haptic.success();
     onSubmit({
       weightKg: weightKg ?? 0,
       reps: status === 'skipped' ? (repsN ?? 0) : repsN!,
@@ -168,16 +183,16 @@ export function SetEntry({
   return (
     <div
       className={cx(
-        'space-y-3 rounded-[22px] border bg-card p-4',
-        setType === 'warmup' ? 'border-skip/50' : 'border-line',
+        'space-y-3.5 rounded-[22px] border-2 bg-card p-4',
+        setType === 'warmup' ? 'border-dashed border-skip' : 'border-primary',
       )}
     >
       <div className="flex items-center justify-between gap-3">
-        <p className="text-[16px] font-semibold">{heading}</p>
+        <p className="display text-[22px] leading-none font-semibold">{heading}</p>
         <div
           role="radiogroup"
           aria-label={t('Set type')}
-          className="flex rounded-xl border border-line bg-inset p-0.5"
+          className="flex rounded-[11px] bg-inset p-[3px]"
         >
           {(
             [
@@ -192,12 +207,12 @@ export function SetEntry({
               aria-checked={setType === v}
               onClick={() => setSetType(v)}
               className={cx(
-                'h-8 rounded-[10px] px-3 text-[13px] font-semibold',
+                'h-8 rounded-lg px-2.5 text-[13px]',
                 setType === v
                   ? v === 'warmup'
-                    ? 'bg-skip-soft text-skip'
-                    : 'bg-card text-ink shadow-sm'
-                  : 'text-muted',
+                    ? 'bg-skip-soft font-bold text-skip'
+                    : 'bg-seg-on font-bold text-on-seg-on'
+                  : 'font-semibold text-muted',
               )}
             >
               {l}
@@ -207,7 +222,7 @@ export function SetEntry({
       </div>
 
       {lastTime && (
-        <p className="rounded-xl bg-inset px-3 py-2 text-[14px]" aria-live="polite">
+        <p className="rounded-xl bg-inset px-3 py-2 text-[13px]" aria-live="polite">
           {last ? (
             <>
               <span className="text-muted">{t('Last time:')} </span>
@@ -226,16 +241,18 @@ export function SetEntry({
         </p>
       )}
 
-      <div className="flex gap-3">
+      <div className="space-y-3">
         <Stepper
+          big
           label={t('Weight, kg')}
           value={weight}
           onChange={setWeight}
-          step={2.5}
+          step={1}
           inputMode="decimal"
           unit={t('kilograms')}
           invalid={touched && !!weightError}
         />
+        <div className="h-px bg-line" aria-hidden />
         <Stepper
           label={t('Reps')}
           value={reps}
@@ -264,10 +281,10 @@ export function SetEntry({
             maxLength={SET_NOTE_MAX}
             onChange={(e) => setNote(e.target.value)}
             placeholder={t('E.g. last rep with some cheating')}
-            className="w-full resize-none rounded-xl border border-line bg-inset px-3 py-2.5 text-[16px] leading-snug outline-none focus:border-primary"
+            className="w-full resize-none rounded-xl border border-line bg-inset px-3 py-2.5 text-[16px] leading-snug outline-none focus:border-primary focus:ring-4 focus:ring-primary/20"
           />
           <div
-            className="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5"
+            className="scroll-row -mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5"
             role="group"
             aria-label={t('Quick comment')}
           >
@@ -278,7 +295,7 @@ export function SetEntry({
                 onClick={() => setNote(t(q))}
                 className={cx(
                   'h-8 shrink-0 rounded-full border px-3 text-[13px] font-medium',
-                  note === t(q) ? 'border-primary bg-primary-soft text-primary' : 'border-line',
+                  note === t(q) ? 'border-primary bg-primary text-on-primary' : 'border-line',
                 )}
               >
                 {t(q)}
@@ -289,7 +306,7 @@ export function SetEntry({
       ) : (
         <button
           type="button"
-          className="text-[14px] font-semibold text-primary"
+          className="py-1 text-[14px] font-bold underline decoration-accent decoration-[3px] underline-offset-[5px]"
           onClick={() => setNoteOpen(true)}
         >
           + {t('Comment')}
@@ -297,7 +314,7 @@ export function SetEntry({
       )}
 
       <Button block size="lg" variant="success" onClick={() => submit('completed')}>
-        ✓ {submitLabel ?? t('Record set')}
+        <CheckIcon /> {submitLabel ?? t('Record set')}
       </Button>
       <div className="flex gap-2">
         <Button variant="secondary" className="flex-1" onClick={() => submit('skipped')}>

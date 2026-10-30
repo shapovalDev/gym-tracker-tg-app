@@ -7,6 +7,7 @@ import { requireAuth } from './auth/middleware';
 import { signInitData } from './auth/telegram';
 import { getDb, type Db } from './db';
 import { parseEnv, type Env } from './env';
+import { clientDayMiddleware } from './http/client-day';
 import { errorBody, handleError } from './http/errors';
 import { ApiRouter } from './http/router';
 import type { AppEnv } from './http/types';
@@ -34,7 +35,10 @@ export function createApp(options: AppOptions = {}) {
   if (env.CORS_ORIGIN)
     app.use(
       '/api/*',
-      cors({ origin: env.CORS_ORIGIN, allowHeaders: ['Authorization', 'Content-Type'] }),
+      cors({
+        origin: env.CORS_ORIGIN,
+        allowHeaders: ['Authorization', 'Content-Type', 'X-Local-Date', 'X-Tz-Offset'],
+      }),
     );
   app.use('/api/*', bodyLimit({ maxSize: 32 * 1024 }));
   app.use('*', async (c, next) => {
@@ -42,6 +46,7 @@ export function createApp(options: AppOptions = {}) {
     c.set('db', db);
     await next();
   });
+  app.use('/api/*', clientDayMiddleware);
 
   // ---- Public -------------------------------------------------------------
   app.get(`${V1}/health`, (c) => c.json({ ok: true }));

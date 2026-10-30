@@ -6,10 +6,16 @@ the decisions taken where the specification left a choice.
 ## MVP — implemented
 
 - **Home:** the next workout of the active program with its exercise list, "Start" / "Continue", choosing
-  another workout of the cycle, the last workout, counters for 7 and 30 days, empty state.
+  another workout of the cycle, this week's strip (done and planned days), the last workout, counters for 7
+  and 30 days, empty state.
 - **Programs:** any number of workouts per program, rename, description, add/delete/reorder workouts,
   planned exercises per workout (sets, rep range, note), reordering, one-tap removal with undo, adding several
   exercises from the library in one go, duplicating workouts and programs, switching the active program, archive.
+  Optional weekly schedule: when creating a program, each workout can be pinned to a day of the week (one
+  workout per day); the cycle is then ordered by the days. The day can be changed later ("Name and day").
+  With a schedule the next workout follows the calendar: today's workout, or — on a rest day or once
+  something of the program was done today — the one of the next planned day. Without pinned days the cycle
+  decides as before.
 - **Exercise library:** create, muscle group, technique notes, search, filter, edit, archive. Technique notes
   and plan notes are shown in the workout plan and during the workout.
 - **Workout:** start and restore after reload, exercise list with set progress, exercise screen (plan, notes,

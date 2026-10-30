@@ -164,7 +164,7 @@ export async function statsSummary(
 }
 
 export async function homeState(db: Db, userId: string): Promise<HomeDto> {
-  const [program, activeSession, lastSession, completedLast7Days, completedLast30Days] =
+  const [program, activeSession, lastSession, completedLast7Days, completedLast30Days, recent] =
     await Promise.all([
       db.trainingProgram.findFirst({
         where: { userId, isActive: true, archivedAt: null },
@@ -195,18 +195,31 @@ export async function homeState(db: Db, userId: string): Promise<HomeDto> {
       db.workoutSession.count({
         where: { userId, status: 'completed', startedAt: { gte: daysAgo(30) } },
       }),
+      db.workoutSession.findMany({
+        where: { userId, status: 'completed', startedAt: { gte: daysAgo(8) } },
+        orderBy: { startedAt: 'asc' },
+        select: { startedAt: true, workout: { select: { programId: true, position: true } } },
+      }),
     ]);
   const nextId = program ? await computeNextWorkoutId(db, program.id, program.workouts) : null;
   const next = program?.workouts.find((w) => w.id === nextId) ?? null;
   return {
     activeProgram: program
-      ? { id: program.id, name: program.name, workoutCount: program.workouts.length }
+      ? {
+          id: program.id,
+          name: program.name,
+          workoutCount: program.workouts.length,
+          schedule: program.workouts.flatMap((w) =>
+            w.weekday == null ? [] : [{ weekday: w.weekday, position: w.position }],
+          ),
+        }
       : null,
     nextWorkout: next
       ? {
           id: next.id,
           name: next.name,
           position: next.position,
+          weekday: next.weekday,
           exerciseCount: next.exercises.length,
           exerciseNames: next.exercises.map((e) => e.exercise.name),
         }
@@ -221,5 +234,9 @@ export async function homeState(db: Db, userId: string): Promise<HomeDto> {
     lastSession: lastSession ? toListItem(lastSession) : null,
     completedLast7Days,
     completedLast30Days,
+    recentWorkouts: recent.map((r) => ({
+      startedAt: r.startedAt.toISOString(),
+      position: r.workout && r.workout.programId === program?.id ? r.workout.position : null,
+    })),
   };
 }

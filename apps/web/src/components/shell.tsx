@@ -77,10 +77,17 @@ function TabBar({ pathname, workoutActive }: { pathname: string; workoutActive: 
               aria-current={active ? 'page' : undefined}
               className={cx(
                 'flex h-[60px] flex-col items-center justify-center gap-0.5 text-[11px] font-semibold',
-                active ? 'text-primary' : 'text-muted',
+                active ? 'text-nav-active' : 'text-muted',
               )}
             >
-              <tab.icon />
+              <span
+                className={cx(
+                  'grid h-[30px] w-[54px] place-items-center rounded-full transition-colors',
+                  active && 'bg-nav-pill',
+                )}
+              >
+                <tab.icon />
+              </span>
               {t(tab.label)}
             </Link>
           </li>
@@ -97,24 +104,24 @@ function ActiveSessionBanner({ name, startedAt }: { name: string | null; started
     <div className="sticky z-30 px-4 pb-2" style={{ top: 'calc(4px + var(--safe-top))' }}>
       <Link
         href="/workout"
-        className="press flex items-center justify-between gap-3 rounded-2xl bg-primary py-2.5 pr-2.5 pl-4 text-on-primary shadow-lg"
+        className="press flex items-center justify-between gap-3 rounded-2xl bg-island py-2.5 pr-2.5 pl-4 text-on-island shadow-lg"
       >
         <span className="flex min-w-0 items-center gap-3">
           <span className="relative flex size-2.5 shrink-0">
-            <span className="absolute inline-flex size-full animate-ping rounded-full bg-white/70 motion-reduce:hidden" />
-            <span className="relative inline-flex size-2.5 rounded-full bg-white" />
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-current opacity-60 motion-reduce:hidden" />
+            <span className="relative inline-flex size-2.5 rounded-full bg-current" />
           </span>
           <span className="min-w-0">
-            <span className="block text-[12px] font-semibold tracking-wide uppercase opacity-90">
+            <span className="block text-[11px] font-semibold tracking-[0.12em] text-island-muted uppercase">
               {t('Workout in progress')}
             </span>
             <span className="block truncate text-[15px] font-semibold">
               {name ?? t('Free workout')}{' '}
-              <span className="num font-medium opacity-85">· {formatClock(elapsed)}</span>
+              <span className="num font-medium">· {formatClock(elapsed)}</span>
             </span>
           </span>
         </span>
-        <span className="shrink-0 rounded-xl bg-white/20 px-3 py-2 text-[14px] font-semibold">
+        <span className="display shrink-0 rounded-xl bg-island-btn px-3 py-2 text-[15px] font-semibold tracking-[0.04em] text-on-island-btn">
           {t('Continue')}
         </span>
       </Link>
@@ -160,14 +167,14 @@ function Toasts() {
           key={t.id}
           className={cx(
             'anim-pop pointer-events-auto flex items-center justify-between gap-3 rounded-2xl px-4 py-3 text-[15px] font-medium shadow-lg',
-            t.tone === 'error' ? 'bg-danger text-white' : 'bg-ink text-card',
+            t.tone === 'error' ? 'bg-danger text-white' : 'bg-island text-on-island',
           )}
         >
           <span>{t.text}</span>
           {t.action && (
             <button
               type="button"
-              className="shrink-0 rounded-lg px-2 py-1 font-semibold text-primary-soft underline-offset-2 hover:underline"
+              className="shrink-0 rounded-lg px-2 py-1 font-bold underline decoration-2 underline-offset-4"
               onClick={() => {
                 t.action!.onClick();
                 dismissToast(t.id);

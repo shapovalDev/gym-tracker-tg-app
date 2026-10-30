@@ -8,9 +8,11 @@ import { count, LOCALE_NAMES, LOCALES, t, type Locale } from '@/i18n';
 import { useLocale } from '@/i18n/provider';
 import { flush, useOutbox } from '@/lib/outbox';
 import { tg } from '@/lib/telegram';
+import { setThemePref, useThemePref, type ThemePref } from '@/lib/theme';
 
 export default function SettingsPage() {
   const { locale, setLocale } = useLocale();
+  const theme = useThemePref();
   const { queue, lastError } = useOutbox();
   const [env, setEnv] = useState<{ inTelegram: boolean; version?: string; platform?: string }>({
     inTelegram: false,
@@ -34,6 +36,19 @@ export default function SettingsPage() {
           value={locale}
           onChange={setLocale}
           options={LOCALES.map((l) => ({ value: l, label: LOCALE_NAMES[l] }))}
+        />
+      </Section>
+
+      <Section title={t('Theme')}>
+        <Segmented<ThemePref>
+          label={t('Theme')}
+          value={theme}
+          onChange={setThemePref}
+          options={[
+            { value: 'system', label: env.inTelegram ? t('As in Telegram') : t('System') },
+            { value: 'light', label: t('Light') },
+            { value: 'dark', label: t('Dark') },
+          ]}
         />
       </Section>
 

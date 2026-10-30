@@ -29,6 +29,7 @@ export async function api<T>(method: string, path: string, body?: unknown): Prom
       method,
       headers: {
         authorization: `tma ${initData}`,
+        ...clientDayHeaders(),
         ...(body !== undefined ? { 'content-type': 'application/json' } : {}),
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
@@ -85,4 +86,12 @@ export function errorMessage(e: unknown): string {
   if (e instanceof Error && e.message === 'NOT_IN_TELEGRAM')
     return t('Open the app from the Telegram bot');
   return t('Something went wrong');
+}
+
+/** The user's calendar day: the server picks "today's" workout by it. */
+function clientDayHeaders() {
+  const now = new Date();
+  const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  // getTimezoneOffset is minutes *west* of UTC; the API expects east
+  return { 'x-local-date': date, 'x-tz-offset': String(-now.getTimezoneOffset()) };
 }

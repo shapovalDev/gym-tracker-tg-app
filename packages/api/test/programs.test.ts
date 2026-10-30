@@ -24,6 +24,98 @@ describe('programs', () => {
     expect(list.body.items.find((p: any) => p.isActive).name).toBe('P1');
   });
 
+  it('puts scheduled workouts in calendar order and keeps one workout per day', async () => {
+    const p = (
+      await c.post('/programs', {
+        name: 'Week',
+        workouts: [
+          { name: 'Legs', weekday: 4 },
+          'Extra',
+          { name: 'Chest', weekday: 0 },
+          { name: 'Back', weekday: 2 },
+        ],
+      })
+    ).body;
+    expect(p.workouts.map((w: any) => [w.name, w.weekday, w.position])).toEqual([
+      ['Chest', 0, 0],
+      ['Back', 2, 1],
+      ['Legs', 4, 2],
+      ['Extra', null, 3],
+    ]);
+
+    const sameDay = await c.post('/programs', {
+      name: 'Bad',
+      workouts: [
+        { name: 'A', weekday: 1 },
+        { name: 'B', weekday: 1 },
+      ],
+    });
+    expect(sameDay.status).toBe(400);
+
+    const [chest, , legs, extra] = p.workouts;
+    const taken = await c.patch(`/workouts/${extra.id}`, { name: 'Extra', weekday: 0 });
+    expect(taken.status).toBe(409);
+    const moved = await c.patch(`/workouts/${extra.id}`, { name: 'Extra', weekday: 5 });
+    expect(moved.body.workouts.find((w: any) => w.id === extra.id).weekday).toBe(5);
+    // renaming without a day keeps the day; null clears it
+    const renamed = await c.patch(`/workouts/${legs.id}`, { name: 'Legs 2' });
+    expect(renamed.body.workouts.find((w: any) => w.id === legs.id).weekday).toBe(4);
+    const cleared = await c.patch(`/workouts/${chest.id}`, { name: 'Chest', weekday: null });
+    expect(cleared.body.workouts.find((w: any) => w.id === chest.id).weekday).toBeNull();
+
+    const copy = await c.post(`/programs/${p.id}/duplicate`);
+    expect(copy.body.workouts.map((w: any) => w.weekday)).toEqual([null, 2, 4, 5]);
+  });
+
+  it("picks the next workout by the user's calendar day when days are pinned", async () => {
+    const iso = (d: Date) => d.toISOString().slice(0, 10);
+    const now = new Date();
+    const today = iso(now);
+    const tomorrow = iso(new Date(now.getTime() + 86_400_000));
+    const wd = (now.getUTCDay() + 6) % 7;
+    const day = (n: number) => (wd + n) % 7;
+    const dayOf = (date: string) => client(1001, { 'x-local-date': date, 'x-tz-offset': '0' });
+
+    const p = (
+      await c.post('/programs', {
+        name: 'Week',
+        workouts: [
+          { name: 'Today', weekday: day(0) },
+          { name: 'In two days', weekday: day(2) },
+          'Unscheduled',
+        ],
+      })
+    ).body;
+    const byName = (n: string) => p.workouts.find((w: any) => w.name === n).id;
+    expect((await dayOf(today).get(`/programs/${p.id}`)).body.nextWorkoutId).toBe(byName('Today'));
+    // tomorrow is a rest day: the next planned day comes up
+    expect((await dayOf(tomorrow).get(`/programs/${p.id}`)).body.nextWorkoutId).toBe(
+      byName('In two days'),
+    );
+
+    // once something of the program is done today, today's slot is used up
+    const exerciseId = await createExercise(c, 'Squat');
+    await c.post(`/workouts/${byName('Unscheduled')}/exercises`, { exerciseId });
+    const s = (await c.post('/sessions', { workoutId: byName('Unscheduled') })).body;
+    await c.put(`/sessions/${s.id}/sets/${crypto.randomUUID()}`, {
+      sessionExerciseId: s.exercises[0].id,
+      setNumber: 1,
+      weightKg: 50,
+      reps: 5,
+      status: 'completed',
+    });
+    await c.post(`/sessions/${s.id}/complete`, {});
+    const home = (await dayOf(today).get('/me/home')).body;
+    expect(home.nextWorkout.id).toBe(byName('In two days'));
+    expect(home.nextWorkout.weekday).toBe(day(2));
+
+    // a client clock far off is ignored (falls back to the UTC day)
+    const bogus = await client(1001, { 'x-local-date': '1999-01-01', 'x-tz-offset': '0' }).get(
+      `/programs/${p.id}`,
+    );
+    expect(bogus.body.nextWorkoutId).toBe(byName('In two days'));
+  });
+
   it('edits, reorders, duplicates and deletes workouts', async () => {
     const p = (await c.post('/programs', { name: 'Split', workouts: ['A', 'B', 'C'] })).body;
     const [a, b, cc] = p.workouts;

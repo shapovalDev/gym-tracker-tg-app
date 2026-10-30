@@ -290,13 +290,13 @@ export function registerRoutes(r: ApiRouter) {
       method: 'patch',
       path: '/workouts/:workoutId',
       tag: 'Workouts',
-      summary: 'Rename workout',
+      summary: 'Rename workout or change its day of the week',
       body: workoutUpdateSchema,
       response: 'ProgramDto',
-      errors: NF,
+      errors: { ...NF, 409: 'WEEKDAY_TAKEN: another workout is planned for this day' },
     },
     ({ c, params, body }) =>
-      programs.renameWorkout(c.get('db'), c.get('userId'), params.workoutId!, body.name),
+      programs.updateWorkout(c.get('db'), c.get('userId'), params.workoutId!, body),
   );
   r.route(
     {

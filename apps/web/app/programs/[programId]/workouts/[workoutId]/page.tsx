@@ -1,6 +1,6 @@
 'use client';
 
-import type { ProgramDto, WorkoutExerciseDto } from '@gym/shared';
+import { WEEKDAYS, type ProgramDto, type WorkoutExerciseDto } from '@gym/shared';
 import { useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -29,7 +29,7 @@ import { ExerciseNotes } from '@/features/exercises/notes';
 import { ExercisePicker } from '@/features/exercises/exercise-picker';
 import { useStartWorkout } from '@/features/workout/use-start-workout';
 import { errorMessage, http } from '@/lib/api';
-import { muscleLabel, targetLabel } from '@/lib/format';
+import { muscleLabel, targetLabel, weekdayLong, weekdayShort } from '@/lib/format';
 import { useApiMutation } from '@/lib/mutations';
 import { queryKeys, useProgram } from '@/lib/queries';
 import { toast } from '@/lib/toast';
@@ -136,6 +136,7 @@ export default function WorkoutEditorPage() {
         subtitle={
           <span className="flex items-center gap-2">
             <PlateBadge index={index} size="sm" /> {program.name}
+            {workout.weekday != null && ` · ${weekdayLong(workout.weekday)}`}
           </span>
         }
         right={
@@ -272,6 +273,14 @@ export default function WorkoutEditorPage() {
         onClose={() => setRenaming(false)}
         workoutId={workoutId}
         name={workout.name}
+        weekday={workout.weekday}
+        takenDays={
+          new Map(
+            program.workouts.flatMap((w, i) =>
+              w.id !== workoutId && w.weekday != null ? [[w.weekday, i] as const] : [],
+            ),
+          )
+        }
         onSaved={setProgram}
       />
       <ActionSheet
@@ -279,7 +288,7 @@ export default function WorkoutEditorPage() {
         onClose={() => setMenu(false)}
         title={workout.name}
         actions={[
-          { label: t('Rename'), onClick: () => setRenaming(true) },
+          { label: t('Name and day'), onClick: () => setRenaming(true) },
           {
             label: t('Duplicate workout'),
             hint: t('The copy is added to the end of the cycle'),
@@ -432,18 +441,27 @@ function RenameSheet({
   onClose,
   workoutId,
   name,
+  weekday,
+  takenDays,
   onSaved,
 }: {
   open: boolean;
   onClose: () => void;
   workoutId: string;
   name: string;
+  weekday: number | null;
+  /** Days planned for other workouts of the program -> their cycle position. */
+  takenDays: Map<number, number>;
   onSaved: (p: ProgramDto) => void;
 }) {
   const [value, setValue] = useState(name);
-  useEffect(() => setValue(name), [name, open]);
+  const [day, setDay] = useState(weekday);
+  useEffect(() => {
+    setValue(name);
+    setDay(weekday);
+  }, [name, weekday, open]);
   const save = useApiMutation(
-    () => http.patch<ProgramDto>(`/workouts/${workoutId}`, { name: value }),
+    () => http.patch<ProgramDto>(`/workouts/${workoutId}`, { name: value, weekday: day }),
     {
       invalidate: [['home']],
       onSuccess: (p) => {
@@ -453,7 +471,7 @@ function RenameSheet({
     },
   );
   return (
-    <Sheet open={open} onClose={onClose} title={t('Workout name')}>
+    <Sheet open={open} onClose={onClose} title={t('Name and day')}>
       <form
         className="space-y-4"
         onSubmit={(e) => {
@@ -468,6 +486,39 @@ function RenameSheet({
           maxLength={100}
           autoFocus
         />
+        <fieldset className="space-y-1.5">
+          <legend className="mb-1.5 px-1 text-[14px] font-medium">{t('Day of the week')}</legend>
+          <div className="grid grid-cols-7 gap-1.5">
+            {WEEKDAYS.map((d) => {
+              const taken = takenDays.get(d);
+              const on = day === d;
+              return (
+                <button
+                  key={d}
+                  type="button"
+                  aria-pressed={on}
+                  disabled={taken !== undefined}
+                  title={weekdayLong(d)}
+                  onClick={() => setDay(on ? null : d)}
+                  className={cx(
+                    'press flex h-14 flex-col items-center justify-center gap-0.5 rounded-xl text-[13px] font-bold disabled:opacity-40',
+                    on ? 'bg-primary text-on-primary' : 'border border-line',
+                  )}
+                >
+                  {weekdayShort(d)}
+                  {taken !== undefined && (
+                    <span className="num text-[11px] font-semibold">
+                      {String.fromCharCode(65 + (taken % 26))}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <p className="px-1 text-[13px] text-muted">
+            {t('Days taken by other workouts are dimmed. Tap the selected day again to clear it.')}
+          </p>
+        </fieldset>
         <Button type="submit" block size="lg" loading={save.isPending} disabled={!value.trim()}>
           {t('Save')}
         </Button>

@@ -6,6 +6,7 @@ import { ApiError } from '@/lib/api';
 import { initOutbox } from '@/lib/outbox';
 import { LocaleProvider } from '@/i18n/provider';
 import { initTelegram, tg } from '@/lib/telegram';
+import { applyTheme } from '@/lib/theme';
 
 export function Providers({ children }: { children: ReactNode }) {
   const [client] = useState(
@@ -24,22 +25,10 @@ export function Providers({ children }: { children: ReactNode }) {
   );
   useEffect(() => {
     initTelegram();
-    const app = tg();
-    if (app) {
-      // Follow Telegram's light/dark choice with our own palette, and paint
-      // Telegram's header/background to match so the app has no seams.
-      const sync = () => {
-        document.documentElement.dataset.theme = app.colorScheme;
-        const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
-        if (bg && app.isVersionAtLeast?.('6.1')) {
-          app.setHeaderColor?.(bg);
-          app.setBackgroundColor?.(bg);
-        }
-        if (bg && app.isVersionAtLeast?.('7.10')) app.setBottomBarColor?.(bg);
-      };
-      sync();
-      app.onEvent?.('themeChanged', sync);
-    }
+    // Follow Telegram's light/dark choice (unless overridden in settings) with our
+    // own palette, and paint Telegram's header/background to match.
+    applyTheme();
+    tg()?.onEvent?.('themeChanged', () => applyTheme());
     initOutbox(client);
   }, [client]);
   return (

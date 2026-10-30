@@ -1,6 +1,6 @@
 'use client';
 
-import { t } from '@/i18n';
+import { intlLocale, t } from '@/i18n';
 import Link from 'next/link';
 import {
   useEffect,
@@ -16,19 +16,29 @@ export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Bool
 /* ---------------------------------------------------------------- buttons */
 
 type Variant = 'primary' | 'secondary' | 'soft' | 'ghost' | 'danger' | 'success';
+// Filled actions turn neutral when disabled (a dimmed lime reads as olive).
 const variants: Record<Variant, string> = {
-  primary: 'bg-primary text-on-primary shadow-[0_1px_0_rgba(0,0,0,0.08)]',
+  primary:
+    'bg-primary text-on-primary disabled:not-aria-busy:bg-inset disabled:not-aria-busy:text-muted aria-busy:opacity-80',
   secondary: 'bg-card text-ink border border-line',
-  soft: 'bg-primary-soft text-primary',
-  ghost: 'bg-transparent text-primary',
+  soft: 'bg-primary-soft text-ink',
+  // text link with the lime underline (readable in both themes)
+  ghost:
+    'bg-transparent text-ink underline decoration-accent decoration-[3px] underline-offset-[5px]',
   danger: 'bg-danger-soft text-danger',
-  success: 'bg-done text-white',
+  success:
+    'bg-done text-on-done disabled:not-aria-busy:bg-inset disabled:not-aria-busy:text-muted aria-busy:opacity-80',
 };
 const sizes = {
   sm: 'h-10 px-3.5 text-[15px] rounded-xl',
-  md: 'h-12 px-4 text-[16px] rounded-2xl',
+  md: 'h-12 px-4 text-[16px] rounded-[14px]',
   lg: 'h-14 px-5 text-[17px] rounded-2xl',
 };
+/** The main action of a screen speaks in the display face. */
+const displayAction = (variant: Variant, size: keyof typeof sizes) =>
+  size === 'lg' && (variant === 'primary' || variant === 'success')
+    ? 'display text-[19px] font-semibold tracking-[0.06em]'
+    : 'font-semibold';
 
 export function Button({
   variant = 'primary',
@@ -52,8 +62,10 @@ export function Button({
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       className={cx(
-        'press inline-flex items-center justify-center gap-2 font-semibold select-none disabled:opacity-45',
+        'press inline-flex items-center justify-center gap-2 select-none',
+        variant !== 'primary' && variant !== 'success' && 'disabled:opacity-45',
         sizes[size],
+        displayAction(variant, size),
         block && 'w-full',
         variants[variant],
         className,
@@ -81,8 +93,9 @@ export function LinkButton({
     <Link
       href={href}
       className={cx(
-        'press inline-flex items-center justify-center gap-2 font-semibold',
+        'press inline-flex items-center justify-center gap-2',
         sizes[size],
+        displayAction(variant, size),
         variants[variant],
         className,
       )}
@@ -123,7 +136,7 @@ export function IconButton({
 
 export function Card({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={cx('rounded-[22px] border border-line bg-card', className)}>{children}</div>
+    <div className={cx('rounded-[18px] border border-line bg-card', className)}>{children}</div>
   );
 }
 
@@ -143,8 +156,8 @@ export function Section({
       {(title || action) && (
         <div className="flex items-end justify-between gap-3 px-1">
           <div>
-            {title && <h2 className="text-[17px] font-semibold">{title}</h2>}
-            {hint && <p className="text-[13px] text-muted">{hint}</p>}
+            {title && <h2 className="display text-[20px] leading-tight font-semibold">{title}</h2>}
+            {hint && <p className="mt-0.5 text-[13px] text-muted">{hint}</p>}
           </div>
           {action}
         </div>
@@ -166,10 +179,8 @@ export function PageHeader({
   return (
     <header className="flex items-start justify-between gap-2 px-1 pt-3">
       <div className="min-w-0">
-        {subtitle && <div className="mb-1 truncate text-[14px] text-muted">{subtitle}</div>}
-        <h1 className="font-display text-[26px] leading-[1.1] font-semibold tracking-tight break-words">
-          {title}
-        </h1>
+        {subtitle && <div className="eyebrow mb-1.5 truncate">{subtitle}</div>}
+        <h1 className="display text-[36px] leading-[1.02] break-words">{title}</h1>
       </div>
       {right && <div className="-mr-2 shrink-0">{right}</div>}
     </header>
@@ -177,24 +188,24 @@ export function PageHeader({
 }
 
 /**
- * Workout identity: a coloured disc in competition-plate colours
- * (A red, B blue, C yellow, D green, E white, then repeats).
+ * Workout identity: a filled tile in the workout's plate colour
+ * (A, B, C… cycle through five plate colours).
  */
 export function PlateBadge({ index, size = 'md' }: { index: number; size?: 'sm' | 'md' | 'lg' }) {
   const letter = String.fromCharCode(65 + (index % 26));
-  const color = `var(--plate-${(index % 5) + 1})`;
+  const n = (index % 5) + 1;
   const px = size === 'lg' ? 52 : size === 'md' ? 40 : 30;
   return (
     <span
       aria-hidden
-      className="font-display grid shrink-0 place-items-center rounded-full font-bold"
+      className="font-display grid shrink-0 place-items-center font-bold"
       style={{
         width: px,
         height: px,
-        fontSize: px * 0.42,
-        background: `color-mix(in srgb, ${color} 16%, var(--card))`,
-        color,
-        boxShadow: `inset 0 0 0 ${Math.round(px / 11)}px ${color}`,
+        borderRadius: Math.round(px * 0.28),
+        fontSize: Math.round(px * 0.5),
+        background: `var(--plate-${n})`,
+        color: `var(--on-plate-${n})`,
       }}
     >
       {letter}
@@ -206,7 +217,7 @@ export function PlateBadge({ index, size = 'md' }: { index: number; size?: 'sm' 
 export function BottomBar({ children, flush }: { children: ReactNode; flush?: boolean }) {
   return (
     <div
-      className="fixed inset-x-0 z-30 border-t border-line bg-bg/92 backdrop-blur"
+      className="fixed inset-x-0 z-30 m-0! border-t border-line bg-bg/92 backdrop-blur"
       style={{
         bottom: flush ? 0 : 'calc(var(--nav-h, 60px) + var(--safe-bottom))',
         paddingBottom: flush ? 'var(--safe-bottom)' : 0,
@@ -241,7 +252,7 @@ export function Field({
         {...rest}
         aria-invalid={!!error || undefined}
         aria-describedby={error || hint ? `${id}-d` : undefined}
-        className="h-12 w-full rounded-2xl border border-line bg-card px-4 text-[16px] text-ink outline-none placeholder:text-muted/70 focus:border-primary"
+        className="h-12 w-full rounded-[14px] border border-line bg-card px-4 text-[16px] text-ink outline-none placeholder:text-muted focus:border-primary focus:ring-4 focus:ring-primary/20"
       />
       {(error || hint) && (
         <p id={`${id}-d`} className={cx('px-1 text-[13px]', error ? 'text-danger' : 'text-muted')}>
@@ -278,7 +289,7 @@ export function TextArea({
         onChange={(e) => onChange(e.target.value)}
         rows={3}
         maxLength={2000}
-        className="w-full rounded-2xl border border-line bg-card px-4 py-3 text-[16px] text-ink outline-none placeholder:text-muted/70 focus:border-primary"
+        className="w-full rounded-[14px] border border-line bg-card px-4 py-3 text-[16px] text-ink outline-none placeholder:text-muted focus:border-primary focus:ring-4 focus:ring-primary/20"
       />
       {hint && <p className="px-1 text-[13px] text-muted">{hint}</p>}
     </div>
@@ -306,7 +317,7 @@ export function Select({
         id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-12 w-full rounded-2xl border border-line bg-card px-4 text-[16px] text-ink"
+        className="h-12 w-full rounded-[14px] border border-line bg-card px-4 text-[16px] text-ink outline-none focus:border-primary focus:ring-4 focus:ring-primary/20"
       >
         {children}
       </select>
@@ -362,8 +373,8 @@ export function EmptyState({
   action?: ReactNode;
 }) {
   return (
-    <div className="rounded-[22px] border border-dashed border-line px-6 py-9 text-center">
-      <h3 className="text-[17px] font-semibold">{title}</h3>
+    <div className="rounded-[18px] border border-dashed border-line px-6 py-9 text-center">
+      <h3 className="display text-[22px] leading-tight">{title}</h3>
       {text && <p className="mx-auto mt-1.5 max-w-xs text-[15px] text-muted">{text}</p>}
       {action && <div className="mt-5">{action}</div>}
     </div>
@@ -402,7 +413,8 @@ export function Sheet({
   if (!open) return null;
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end justify-center"
+      // m-0!: sheets often sit in space-y-* containers, whose margins would lift a fixed layer
+      className="fixed inset-0 z-50 m-0! flex items-end justify-center"
       role="dialog"
       aria-modal="true"
       aria-label={title}
@@ -410,7 +422,7 @@ export function Sheet({
       <button
         type="button"
         aria-label={t('Close')}
-        className="absolute inset-0 bg-black/45"
+        className="absolute inset-0 bg-black/55"
         onClick={onClose}
       />
       <div
@@ -420,7 +432,7 @@ export function Sheet({
         style={{ paddingBottom: 'calc(16px + var(--safe-bottom))' }}
       >
         <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-line" aria-hidden />
-        <h2 className="mb-4 text-center text-[17px] font-semibold">{title}</h2>
+        <h2 className="display mb-4 px-1 text-[24px] leading-tight">{title}</h2>
         {children}
       </div>
     </div>
@@ -448,7 +460,7 @@ export function ConfirmSheet({
 }) {
   return (
     <Sheet open={open} onClose={onClose} title={title}>
-      {text && <p className="mb-5 text-center text-[15px] text-muted">{text}</p>}
+      {text && <p className="mb-5 px-1 text-[15px] text-muted">{text}</p>}
       <div className="space-y-2">
         <Button
           block
@@ -530,11 +542,7 @@ export function Segmented<T extends string>({
   label: string;
 }) {
   return (
-    <div
-      role="radiogroup"
-      aria-label={label}
-      className="flex rounded-2xl border border-line bg-inset p-1"
-    >
+    <div role="radiogroup" aria-label={label} className="flex rounded-[14px] bg-inset p-1">
       {options.map((o) => (
         <button
           key={o.value}
@@ -543,10 +551,8 @@ export function Segmented<T extends string>({
           aria-checked={value === o.value}
           onClick={() => onChange(o.value)}
           className={cx(
-            'h-10 flex-1 rounded-xl text-[15px] font-semibold transition-colors',
-            value === o.value
-              ? 'bg-card text-ink shadow-[0_1px_2px_rgba(0,0,0,0.12)]'
-              : 'text-muted',
+            'h-10 flex-1 rounded-[10px] text-[15px] transition-colors',
+            value === o.value ? 'bg-seg-on font-bold text-on-seg-on' : 'font-semibold text-muted',
           )}
         >
           {o.label}
@@ -571,8 +577,10 @@ export function Chip({
       onClick={onClick}
       aria-pressed={active}
       className={cx(
-        'press h-10 shrink-0 rounded-full border px-4 text-[15px] font-medium whitespace-nowrap',
-        active ? 'border-primary bg-primary text-on-primary' : 'border-line bg-card text-ink',
+        'press h-10 shrink-0 rounded-full border px-4 text-[15px] font-semibold whitespace-nowrap',
+        active
+          ? 'border-primary bg-primary text-on-primary'
+          : 'border-line bg-transparent text-ink',
       )}
     >
       {children}
@@ -584,7 +592,7 @@ export function Stat({ label, value, sub }: { label: string; value: ReactNode; s
   return (
     <Card className="p-4">
       <div className="text-[13px] text-muted">{label}</div>
-      <div className="num mt-1 text-[24px] leading-tight font-semibold">{value}</div>
+      <div className="num mt-1 text-[30px] leading-none font-semibold">{value}</div>
       {sub && <div className="mt-1 text-[13px] text-muted">{sub}</div>}
     </Card>
   );
@@ -594,11 +602,31 @@ export function Change({ pct }: { pct: number | null }) {
   if (pct === null) return <span className="text-muted">{t('no data to compare')}</span>;
   const up = pct > 0;
   return (
-    <span
-      className={cx('font-semibold', pct === 0 ? 'text-muted' : up ? 'text-done' : 'text-danger')}
-    >
-      {up ? '+' : pct < 0 ? '−' : ''}
-      {t('{pct}% vs previous period', { pct: Math.abs(pct) })}
+    <span className="font-semibold">
+      <span
+        className={cx(
+          'rounded-md px-1.5 py-px',
+          up ? 'bg-accent text-on-accent' : pct < 0 ? 'bg-danger-soft text-danger' : 'text-muted',
+        )}
+      >
+        {up ? '+' : pct < 0 ? '−' : ''}
+        {Math.abs(pct)}%
+      </span>{' '}
+      <span className="font-normal text-muted">{t('vs previous period')}</span>
+    </span>
+  );
+}
+
+/** Day number over a short month: the left column of workout rows. */
+export function DateBlock({ iso }: { iso: string }) {
+  const d = new Date(iso);
+  const month = new Intl.DateTimeFormat(intlLocale(), { month: 'short' })
+    .format(d)
+    .replace('.', '');
+  return (
+    <span className="w-11 shrink-0 text-center">
+      <span className="num block text-[22px] leading-none font-semibold">{d.getDate()}</span>
+      <span className="mt-0.5 block text-[11px] text-muted uppercase">{month}</span>
     </span>
   );
 }

@@ -1,89 +1,146 @@
 @import 'tailwindcss';
 
 /*
- * Design tokens.
- * Own palette with clear steps between page, card and inset surfaces (Telegram's
- * theme colours are often too close to each other and made the UI blend).
- * Light/dark follows Telegram's colorScheme (data-theme on <html>), or the OS
- * setting in a plain browser.
+ * Design tokens — "Volt".
+ * One accent, the lime #d4ff3a. Dark: lime on graphite tinted towards the
+ * accent. Light: black + lime on near-white — lime is a fill on black or a
+ * highlight, never text on white (it has no contrast there). "Done" reuses the
+ * accent. The "island" is the inverted hero surface (lime in dark, black in light).
+ * Light/dark follows Telegram's colorScheme or the choice in settings
+ * (data-theme on <html>), or the OS setting in a plain browser.
  *
- * Plate colours (IWF competition plates) identify workouts A/B/C/D/E.
+ * Plate colours identify workouts A/B/C/D/E (--on-plate-N is the letter on it).
  */
 :root {
-  --bg: #e9ecf1;
+  /* the brand lime in both themes (underlines, badges, highlights) */
+  --accent: #d4ff3a;
+  --on-accent: #0b0c0a;
+  --bg: #f5f6f3;
   --card: #ffffff;
-  --inset: #f2f4f7;
-  --line: #d3d9e1;
-  --ink: #14171c;
-  --muted: #5d6673;
-  --primary: #2347e6;
-  --primary-soft: #e3e9fd;
-  --on-primary: #ffffff;
-  --done: #0c8f47;
-  --done-soft: #ddf3e6;
-  --skip: #9a6c00;
-  --skip-soft: #fbefc8;
-  --danger: #cf2236;
-  --danger-soft: #fbe4e7;
-  --plate-1: #d7263d;
-  --plate-2: #2347e6;
-  --plate-3: #e8b100;
-  --plate-4: #0c8f47;
-  --plate-5: #9aa3af;
+  --inset: #eceee9;
+  --line: #e2e5de;
+  --ink: #0d0f0b;
+  --muted: #5e6359;
+  --primary: #0d0f0b;
+  --on-primary: #d4ff3a;
+  --primary-soft: #eef5d2;
+  --done: #0d0f0b;
+  --on-done: #d4ff3a;
+  --done-soft: #eef5d2;
+  --skip: #8a5a00;
+  --skip-soft: #f6ead0;
+  --danger: #c4302b;
+  --danger-soft: #f9e3e1;
+  --seg-on: #0d0f0b;
+  --on-seg-on: #d4ff3a;
+  --island: #0d0f0b;
+  --on-island: #f5f6f3;
+  --island-muted: rgba(245, 246, 243, 0.7);
+  --island-ghost: rgba(212, 255, 58, 0.08);
+  --island-btn: #d4ff3a;
+  --on-island-btn: #0d0f0b;
+  --nav-active: #0d0f0b;
+  --nav-pill: #d4ff3a;
+  --plate-1: #d4ff3a;
+  --plate-2: #0d0f0b;
+  --plate-3: #e3c27a;
+  --plate-4: #7cc4f2;
+  --plate-5: #b9a7f7;
+  --on-plate-1: #0d0f0b;
+  --on-plate-2: #d4ff3a;
+  --on-plate-3: #0d0f0b;
+  --on-plate-4: #0d0f0b;
+  --on-plate-5: #0d0f0b;
   --safe-top: calc(var(--tg-safe-area-inset-top, 0px) + var(--tg-content-safe-area-inset-top, 0px));
   --safe-bottom: max(var(--tg-safe-area-inset-bottom, 0px), env(safe-area-inset-bottom, 0px));
   color-scheme: light;
 }
 
 :root[data-theme='dark'] {
-  --bg: #0e1115;
-  --card: #1a1e25;
-  --inset: #252a33;
-  --line: #343b46;
-  --ink: #eef1f5;
-  --muted: #9aa3af;
-  --primary: #5b7cff;
-  --primary-soft: #1f2a52;
-  --done: #34c774;
-  --done-soft: #15301f;
+  --bg: #0b0c0a;
+  --card: #161814;
+  --inset: #23261f;
+  --line: #262a22;
+  --ink: #f2f4ee;
+  --muted: #9a9f92;
+  --primary: #d4ff3a;
+  --on-primary: #0b0c0a;
+  --primary-soft: rgba(212, 255, 58, 0.14);
+  --done: #d4ff3a;
+  --on-done: #0b0c0a;
+  --done-soft: rgba(212, 255, 58, 0.08);
   --skip: #f0c541;
   --skip-soft: #3a3110;
-  --danger: #ff5a6c;
-  --danger-soft: #3d1a20;
-  --plate-1: #ff4d5e;
-  --plate-2: #5b7cff;
-  --plate-3: #f0c541;
-  --plate-4: #34c774;
-  --plate-5: #c3c9d2;
+  --danger: #f2685f;
+  --danger-soft: #3a1b18;
+  --seg-on: #f2f4ee;
+  --on-seg-on: #0b0c0a;
+  --island: #d4ff3a;
+  --on-island: #0b0c0a;
+  --island-muted: rgba(11, 12, 10, 0.68);
+  --island-ghost: rgba(11, 12, 10, 0.07);
+  --island-btn: #0b0c0a;
+  --on-island-btn: #d4ff3a;
+  --nav-active: #d4ff3a;
+  --nav-pill: rgba(212, 255, 58, 0.14);
+  --plate-1: #d4ff3a;
+  --plate-2: #e9ebe4;
+  --plate-3: #e6d3a3;
+  --plate-4: #8fd3ff;
+  --plate-5: #c4b5fd;
+  --on-plate-1: #0b0c0a;
+  --on-plate-2: #0b0c0a;
+  --on-plate-3: #0b0c0a;
+  --on-plate-4: #0b0c0a;
+  --on-plate-5: #0b0c0a;
   color-scheme: dark;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
-    --bg: #0e1115;
-    --card: #1a1e25;
-    --inset: #252a33;
-    --line: #343b46;
-    --ink: #eef1f5;
-    --muted: #9aa3af;
-    --primary: #5b7cff;
-    --primary-soft: #1f2a52;
-    --done: #34c774;
-    --done-soft: #15301f;
+    --bg: #0b0c0a;
+    --card: #161814;
+    --inset: #23261f;
+    --line: #262a22;
+    --ink: #f2f4ee;
+    --muted: #9a9f92;
+    --primary: #d4ff3a;
+    --on-primary: #0b0c0a;
+    --primary-soft: rgba(212, 255, 58, 0.14);
+    --done: #d4ff3a;
+    --on-done: #0b0c0a;
+    --done-soft: rgba(212, 255, 58, 0.08);
     --skip: #f0c541;
     --skip-soft: #3a3110;
-    --danger: #ff5a6c;
-    --danger-soft: #3d1a20;
-    --plate-1: #ff4d5e;
-    --plate-2: #5b7cff;
-    --plate-3: #f0c541;
-    --plate-4: #34c774;
-    --plate-5: #c3c9d2;
+    --danger: #f2685f;
+    --danger-soft: #3a1b18;
+    --seg-on: #f2f4ee;
+    --on-seg-on: #0b0c0a;
+    --island: #d4ff3a;
+    --on-island: #0b0c0a;
+    --island-muted: rgba(11, 12, 10, 0.68);
+    --island-ghost: rgba(11, 12, 10, 0.07);
+    --island-btn: #0b0c0a;
+    --on-island-btn: #d4ff3a;
+    --nav-active: #d4ff3a;
+    --nav-pill: rgba(212, 255, 58, 0.14);
+    --plate-1: #d4ff3a;
+    --plate-2: #e9ebe4;
+    --plate-3: #e6d3a3;
+    --plate-4: #8fd3ff;
+    --plate-5: #c4b5fd;
+    --on-plate-1: #0b0c0a;
+    --on-plate-2: #0b0c0a;
+    --on-plate-3: #0b0c0a;
+    --on-plate-4: #0b0c0a;
+    --on-plate-5: #0b0c0a;
     color-scheme: dark;
   }
 }
 
 @theme inline {
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
   --color-bg: var(--bg);
   --color-card: var(--card);
   --color-inset: var(--inset);
@@ -91,14 +148,25 @@
   --color-ink: var(--ink);
   --color-muted: var(--muted);
   --color-primary: var(--primary);
-  --color-primary-soft: var(--primary-soft);
   --color-on-primary: var(--on-primary);
+  --color-primary-soft: var(--primary-soft);
   --color-done: var(--done);
+  --color-on-done: var(--on-done);
   --color-done-soft: var(--done-soft);
   --color-skip: var(--skip);
   --color-skip-soft: var(--skip-soft);
   --color-danger: var(--danger);
   --color-danger-soft: var(--danger-soft);
+  --color-seg-on: var(--seg-on);
+  --color-on-seg-on: var(--on-seg-on);
+  --color-island: var(--island);
+  --color-on-island: var(--on-island);
+  --color-island-muted: var(--island-muted);
+  --color-island-ghost: var(--island-ghost);
+  --color-island-btn: var(--island-btn);
+  --color-on-island-btn: var(--on-island-btn);
+  --color-nav-active: var(--nav-active);
+  --color-nav-pill: var(--nav-pill);
   --font-sans:
     var(--font-body), ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
     sans-serif;
@@ -124,7 +192,24 @@ body {
 .num {
   font-family: var(--font-display);
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
+}
+
+/* Condensed uppercase display type: page titles, hero copy, primary actions. */
+.display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+}
+
+/* Small uppercase section label. */
+.eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 input[type='number']::-webkit-inner-spin-button,
@@ -184,4 +269,13 @@ input[type='date'] {
 }
 input[type='date']::-webkit-date-and-time-value {
   text-align: left;
+}
+
+/* Horizontal chip rows: fade the trailing edge so it reads as scrollable. */
+.scroll-row {
+  scrollbar-width: none;
+  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent);
+}
+.scroll-row::-webkit-scrollbar {
+  display: none;
 }

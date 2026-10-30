@@ -90,3 +90,17 @@ export const muscleLabel = (g: string) =>
       } as const
     )[g as 'chest'] ?? 'Other',
   );
+
+// 1 Jan 2024 was a Monday: weekday n (0 = Monday) is that date + n days.
+const weekdayDate = (n: number) => new Date(2024, 0, 1 + n, 12);
+const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+/** "Пн", "Mon". */
+export const weekdayShort = (n: number) =>
+  capitalize(
+    new Intl.DateTimeFormat(intlLocale(), { weekday: 'short' })
+      .format(weekdayDate(n))
+      .replace('.', ''),
+  );
+/** "Понеділок", "Monday". */
+export const weekdayLong = (n: number) =>
+  capitalize(new Intl.DateTimeFormat(intlLocale(), { weekday: 'long' }).format(weekdayDate(n)));

@@ -15,6 +15,13 @@ never trusted. The user record is created on the first successful request.
 Public endpoints: `/health`, `/openapi.json`, `/telegram/webhook` (checks `X-Telegram-Bot-Api-Secret-Token`),
 `/dev/init-data` (only with `ALLOW_DEV_AUTH=true` and `NODE_ENV≠production`).
 
+## Client day
+
+The client sends its calendar day with every request: `X-Local-Date: YYYY-MM-DD` and `X-Tz-Offset: <minutes
+east of UTC>`. The server runs in UTC; it uses these headers to pick "today's" workout of a program with pinned
+days (`nextWorkoutId`, `GET /me/home`). Missing or implausible values (more than a day off) fall back to the
+UTC day.
+
 ## Errors
 
 ```json

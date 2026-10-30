@@ -102,6 +102,9 @@ model ProgramWorkout {
   name      String   @db.VarChar(100)
   /// 0-based order within the cycle; dense and unique per program.
   position  Int
+  /// Day of the week the workout is planned for, 0 = Monday … 6 = Sunday.
+  /// At most one workout per day (partial unique index in migration SQL).
+  weekday   Int?     @db.SmallInt
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
 

@@ -11,6 +11,7 @@ import {
   PageHeader,
   PageLoader,
   Segmented,
+  cx,
 } from '@/components/ui';
 import { errorMessage } from '@/lib/api';
 import { usePrograms } from '@/lib/queries';
@@ -61,26 +62,39 @@ export default function ProgramsPage() {
           />
         )
       ) : (
-        <ul className="space-y-3">
+        <ul className="space-y-2.5">
           {items.map((p) => (
             <li key={p.id}>
               <Link
                 href={`/programs/${p.id}`}
-                className={`press flex items-center gap-3 rounded-[22px] border bg-card p-4 ${p.isActive ? 'border-primary' : 'border-line'}`}
+                className={cx(
+                  'press flex items-center gap-3 rounded-[18px]',
+                  p.isActive ? 'bg-island p-5 text-on-island' : 'border border-line bg-card p-4',
+                )}
               >
                 <span className="min-w-0 flex-1">
                   {p.isActive && (
-                    <span className="mb-1 block text-[13px] font-semibold text-primary">
-                      {t('Active')}
-                    </span>
+                    <span className="eyebrow mb-1.5 block !text-island-muted">{t('Active')}</span>
                   )}
-                  <span className="block truncate text-[18px] font-semibold">{p.name}</span>
-                  <span className="block truncate text-[14px] text-muted">
+                  <span
+                    className={cx(
+                      'block truncate',
+                      p.isActive ? 'display text-[28px] leading-none' : 'text-[17px] font-bold',
+                    )}
+                  >
+                    {p.name}
+                  </span>
+                  <span
+                    className={cx(
+                      'mt-1 block truncate text-[13px]',
+                      p.isActive ? 'text-island-muted' : 'text-muted',
+                    )}
+                  >
                     {count(p.workoutCount, 'workout')}
-                    {p.description ? `. ${p.description}` : ''}
+                    {p.description ? ` · ${p.description}` : ''}
                   </span>
                 </span>
-                <span className="text-muted">
+                <span className={p.isActive ? '' : 'text-muted'}>
                   <ChevronRight />
                 </span>
               </Link>
@@ -90,7 +104,7 @@ export default function ProgramsPage() {
       )}
       {tab === 'active' && items.length > 0 && (
         <BottomBar>
-          <LinkButton href="/programs/new" variant="secondary" className="flex-1">
+          <LinkButton href="/programs/new" size="lg" className="flex-1">
             <PlusIcon /> {t('New program')}
           </LinkButton>
         </BottomBar>

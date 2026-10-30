@@ -19,7 +19,6 @@ import {
   ActionSheet,
   BottomBar,
   Button,
-  Card,
   ConfirmSheet,
   EmptyState,
   ErrorState,
@@ -139,9 +138,8 @@ function ActiveWorkout({
       router.replace('/');
     },
   });
-  // Exercises without recorded sets go immediately; with sets — after a confirmation.
-  const askRemove = (se: SessionExerciseDto) =>
-    se.sets.length ? setRemoving(se) : removeExercise.mutate(se);
+  // Always confirmed: the button sits right under the set list and is easy to hit by accident.
+  const askRemove = (se: SessionExerciseDto) => setRemoving(se);
 
   const finish = async () => {
     setFinishing(true);
@@ -179,10 +177,10 @@ function ActiveWorkout({
   const header = (
     <header className="flex items-start justify-between gap-2 px-1 pt-3">
       <div className="min-w-0">
-        <p className="num text-[15px] text-muted" aria-label={t('Workout duration')}>
+        <p className="num text-[18px] font-semibold text-muted" aria-label={t('Workout duration')}>
           <WorkoutClock startedAt={session.startedAt} />
         </p>
-        <h1 className="font-display truncate text-[22px] leading-tight font-semibold">
+        <h1 className="display truncate text-[34px] leading-[1.02]">
           {session.workoutName ?? t('Free workout')}
         </h1>
       </div>
@@ -206,27 +204,32 @@ function ActiveWorkout({
         />
       ) : (
         <>
-          <Card className="p-4">
-            <div className="flex items-baseline justify-between">
-              <span className="text-[15px] font-semibold">
+          <div className="space-y-2 px-1">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="eyebrow">
                 {t('{done} of {total} exercises', {
                   done: doneCount,
                   total: session.exercises.length,
                 })}
               </span>
-              <span className="text-[14px] text-muted">
-                {count(live.totalSets, 'set')}, {formatVolume(live.volumeKg)}
+              <span className="text-[13px] font-semibold">
+                {count(live.totalSets, 'set')} · {formatVolume(live.volumeKg)}
               </span>
             </div>
-            <div className="mt-3 h-2 overflow-hidden rounded-full bg-inset" aria-hidden>
-              <div
-                className="h-full rounded-full bg-done transition-[width]"
-                style={{
-                  width: `${session.exercises.length ? (doneCount / session.exercises.length) * 100 : 0}%`,
-                }}
-              />
-            </div>
-          </Card>
+            {session.exercises.length > 0 && (
+              <div className="flex gap-1.5" aria-hidden>
+                {session.exercises.map((e) => (
+                  <span
+                    key={e.id}
+                    className={cx(
+                      'h-2 flex-1 rounded-full transition-colors',
+                      isDone(e) ? 'bg-done' : e.sets.length ? 'bg-muted' : 'bg-inset',
+                    )}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
 
           {session.exercises.length === 0 ? (
             <EmptyState
@@ -239,10 +242,11 @@ function ActiveWorkout({
               }
             />
           ) : (
-            <ol className="space-y-2.5">
+            <ol className="space-y-2">
               {session.exercises.map((e, i) => {
                 const completed = workingSets(e).filter((s) => s.status === 'completed').length;
                 const done = isDone(e);
+                const started = !done && e.sets.length > 0;
                 const reps = targetLabel(null, e.targetRepsMin, e.targetRepsMax);
                 return (
                   <li key={e.id}>
@@ -250,32 +254,41 @@ function ActiveWorkout({
                       type="button"
                       onClick={() => setOpenId(e.id)}
                       className={cx(
-                        'press flex w-full items-center gap-3 rounded-[22px] border bg-card p-4 text-left',
-                        done ? 'border-done/40' : 'border-line',
+                        'press flex w-full items-center gap-3.5 rounded-2xl px-3.5 py-3 text-left',
+                        done
+                          ? 'border border-line'
+                          : started
+                            ? 'border-2 border-ink bg-card'
+                            : 'border border-line bg-card',
                       )}
                     >
                       <span
                         className={cx(
-                          'num grid size-10 shrink-0 place-items-center rounded-full text-[15px] font-semibold',
-                          done ? 'bg-done text-white' : 'bg-inset text-ink',
+                          'num grid size-9 shrink-0 place-items-center rounded-[10px] text-[17px] font-bold',
+                          done
+                            ? 'bg-done text-on-done'
+                            : started
+                              ? 'bg-ink text-bg'
+                              : 'bg-inset text-muted',
                         )}
                       >
                         {done ? <CheckIcon /> : i + 1}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block text-[17px] leading-snug font-semibold">
+                        <span className="block text-[16px] leading-snug font-semibold">
                           {e.name}
                         </span>
-                        <span className="mt-1.5 flex items-center gap-2.5">
+                        <span className="mt-1 flex items-center gap-2">
                           <SetDots done={workingSets(e).length} planned={e.plannedSets ?? 0} />
-                          <span className="text-[14px] text-muted">
+                          <span className="text-[13px] text-muted">
                             {e.plannedSets
                               ? t('{done} of {total} sets', {
                                   done: completed,
                                   total: e.plannedSets,
                                 })
                               : count(completed, 'set')}
-                            {reps ? `, ${t('{reps} reps', { reps })}` : ''}
+                            {/* targetLabel already says "reps" */}
+                            {reps ? ` · ${reps}` : ''}
                           </span>
                         </span>
                       </span>
@@ -292,13 +305,13 @@ function ActiveWorkout({
           <BottomBar>
             <Button
               variant="secondary"
-              className="flex-1"
+              size="lg"
               onClick={() => setPicking(true)}
               loading={addExercise.isPending}
             >
               <PlusIcon /> {t('Exercise')}
             </Button>
-            <Button variant="success" className="flex-1" onClick={() => setFinishOpen(true)}>
+            <Button size="lg" className="flex-1" onClick={() => setFinishOpen(true)}>
               {t('Finish')}
             </Button>
           </BottomBar>
@@ -351,7 +364,11 @@ function ActiveWorkout({
         open={!!removing}
         onClose={() => setRemoving(null)}
         title={t('Remove “{name}”?', { name: removing?.name ?? '' })}
-        text={t('The recorded sets of this exercise will be deleted.')}
+        text={
+          removing?.sets.length
+            ? t('The recorded sets of this exercise will be deleted.')
+            : t('You can add it again with “Add exercise”.')
+        }
         confirmLabel={t('Remove')}
         danger
         loading={removeExercise.isPending}
@@ -450,19 +467,19 @@ function ExerciseView({
       <button
         type="button"
         onClick={onBack}
-        className="-ml-1 flex h-10 items-center gap-1 text-[15px] font-semibold text-primary"
+        className="press flex h-10 items-center gap-0.5 rounded-xl border border-line pr-3 pl-1.5 text-[14px] font-semibold"
       >
         <ChevronLeft /> {t('All exercises')}
       </button>
 
       <div className="space-y-2.5">
-        <p className="text-[14px] text-muted">
+        <p className="eyebrow">
           {t('Exercise {n} of {total}', { n: index + 1, total: session.exercises.length })}
-          {exercise.muscleGroup ? `, ${muscleLabel(exercise.muscleGroup).toLowerCase()}` : ''}
+          {exercise.muscleGroup ? ` · ${muscleLabel(exercise.muscleGroup)}` : ''}
         </p>
-        <h2 className="text-[24px] leading-tight font-semibold">{exercise.name}</h2>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-lg bg-inset px-2.5 py-1 text-[14px] font-semibold">
+        <h2 className="display text-[32px] leading-[1.02]">{exercise.name}</h2>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <span className="rounded-lg bg-inset px-2.5 py-1 text-[13px] font-semibold">
             {target ? t('Plan: {target}', { target }) : t('No plan set')}
           </span>
           <SetDots done={workingSets(exercise).length} planned={exercise.plannedSets ?? 0} />
@@ -557,7 +574,7 @@ function ExerciseView({
             <ChevronRight />
           </Button>
         ) : (
-          <Button variant="secondary" className="flex-1" onClick={onBack}>
+          <Button className="flex-1" onClick={onBack}>
             {t('Back to exercise list')}
           </Button>
         )}
@@ -569,15 +586,17 @@ function ExerciseView({
 function WorkoutSummary({ session }: { session: SessionDto }) {
   const s = session.summary;
   return (
-    <div className="space-y-5 pt-8">
-      <div className="text-center">
-        <div className="mx-auto grid size-16 place-items-center rounded-full bg-done text-white">
+    <div className="space-y-3 pt-4">
+      <div className="relative overflow-hidden rounded-[24px] bg-island px-5 pt-6 pb-5 text-on-island">
+        <span className="grid size-14 place-items-center rounded-full bg-island-btn text-on-island-btn">
           <CheckIcon />
-        </div>
-        <h1 className="font-display mt-4 text-[24px] font-semibold">{t('Workout finished')}</h1>
-        <p className="mt-1 text-muted">{session.workoutName ?? t('Free workout')}</p>
+        </span>
+        <h1 className="display mt-4 text-[42px] leading-[0.98]">{t('Workout finished')}</h1>
+        <p className="mt-2 text-[15px] text-island-muted">
+          {session.workoutName ?? t('Free workout')} · {formatDate(session.startedAt)}
+        </p>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-2">
         <Stat
           label={t('Total duration')}
           value={formatDuration(s.durationSeconds)}
@@ -592,10 +611,15 @@ function WorkoutSummary({ session }: { session: SessionDto }) {
         />
       </div>
       <BottomBar>
-        <LinkButton href={`/history/${session.id}`} variant="secondary" className="flex-1">
+        <LinkButton
+          href={`/history/${session.id}`}
+          variant="secondary"
+          size="lg"
+          className="flex-1"
+        >
           {t('Details')}
         </LinkButton>
-        <LinkButton href="/" className="flex-1">
+        <LinkButton href="/" size="lg" className="flex-1">
           {t('Go to Home')}
         </LinkButton>
       </BottomBar>

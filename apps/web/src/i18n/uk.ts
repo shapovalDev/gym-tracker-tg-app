@@ -19,7 +19,7 @@ export const uk = {
   Close: 'Закрити',
   'Not now': 'Не зараз',
   'no data to compare': 'немає даних для порівняння',
-  '{pct}% vs previous period': '{pct}% до попереднього періоду',
+  'vs previous period': 'до попереднього періоду',
 
   // errors
   'Could not save': 'Не вдалося зберегти',
@@ -74,7 +74,7 @@ export const uk = {
   'A program is a set of workouts that repeat in a cycle: A, B, C… and A again. Create one and add exercises.':
     'Програма — це тренування, що йдуть по колу: A, B, C… і знову A. Створіть її та додайте вправи.',
   'Create program': 'Створити програму',
-  'Up next in your program': 'Сьогодні за програмою',
+  'Up next in your program': 'Наступне за програмою',
   'This workout has no exercises yet.': 'У цьому тренуванні поки немає вправ.',
   'Start workout': 'Почати тренування',
   'Add exercises': 'Додати вправи',
@@ -215,7 +215,6 @@ export const uk = {
   'Set sets and reps': 'Задати підходи',
   'Remove “{name}” from the workout': 'Прибрати «{name}» із тренування',
   Start: 'Почати',
-  Rename: 'Перейменувати',
   'Duplicate workout': 'Дублювати тренування',
   'The copy is added to the end of the cycle': 'Копія додасться в кінець циклу',
   'Delete workout': 'Видалити тренування',
@@ -233,7 +232,6 @@ export const uk = {
   'E.g. superset with the next one': 'Наприклад: суперсет із наступною',
   'Edit exercise': 'Змінити вправу',
   Remove: 'Прибрати',
-  'Workout name': 'Назва тренування',
 
   // exercises
   'Your library': 'Ваша бібліотека',
@@ -316,7 +314,31 @@ export const uk = {
   'Remove “{name}”?': 'Прибрати «{name}»?',
   'The recorded sets of this exercise will be deleted.':
     'Записані підходи цієї вправи буде видалено.',
+  'You can add it again with “Add exercise”.': 'Її можна додати знову через «Додати вправу».',
   'Cancel the workout?': 'Скасувати тренування?',
+  Theme: 'Тема',
+  'A skipped workout is not counted. The next one follows your schedule.':
+    'Пропущене тренування не зараховується. Наступне — за вашим розкладом.',
+  'Today in your program': 'Сьогодні за програмою',
+  'Next in your program: {day}': 'Далі за програмою: {day}',
+  'Name and day': 'Назва і день',
+  'Days taken by other workouts are dimmed. Tap the selected day again to clear it.':
+    'Дні інших тренувань неактивні. Торкніться вибраного дня ще раз, щоб прибрати його.',
+  Schedule: 'Розклад',
+  'Optional. Pick the days: the workouts will follow the order of the week.':
+    'Необовʼязково. Оберіть дні — тренування стануть у порядку днів тижня.',
+  'No workout': 'Без тренування',
+  '{day}: which workout?': '{day}: яке тренування?',
+  'Now on {day}': 'Зараз: {day}',
+  'Day of the week': 'День тижня',
+  '+{n} more': 'ще {n}',
+  'This week': 'Цей тиждень',
+  planned: 'заплановано',
+  rest: 'відпочинок',
+  'As in Telegram': 'Як у Telegram',
+  System: 'Системна',
+  Light: 'Світла',
+  Dark: 'Темна',
   'It will not count as done, and the program cycle will not move.':
     'Воно не зарахується як виконане, цикл програми не зсунеться.',
   'All exercises': 'Усі вправи',
@@ -334,7 +356,6 @@ export const uk = {
   'You already have an unfinished workout': 'У вас уже є незавершене тренування',
   'Which workout to start?': 'Яке тренування почати?',
   'No exercises': 'Немає вправ',
-  'next in the cycle': 'наступне за циклом',
   'A skipped workout is not counted. The next one in the cycle will be the one after the workout you pick.':
     'Пропущене тренування не зараховується. Наступним за циклом стане те, що йде після вибраного.',
   'Free workout without a plan': 'Вільне тренування без плану',

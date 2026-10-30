@@ -14,6 +14,7 @@ import {
   WEIGHT_MAX_KG,
   WEIGHT_MIN_KG,
 } from './constants';
+import { hasDistinctWeekdays } from './domain/schedule';
 import { roundWeightKg } from './domain/weight';
 
 /** Request validation schemas shared by the API (enforcement) and the web app (forms). */
@@ -58,11 +59,29 @@ export const exerciseListQuerySchema = z.object({
 });
 
 // ---- Programs --------------------------------------------------------------
+/** 0 = Monday … 6 = Sunday; see domain/schedule. */
+export const weekdaySchema = z.number().int().min(0).max(6);
+
+const plannedWorkout = z
+  .union([name, z.object({ name, weekday: weekdaySchema.nullish() })])
+  .transform((w) =>
+    typeof w === 'string'
+      ? { name: w, weekday: null }
+      : { name: w.name, weekday: w.weekday ?? null },
+  );
+
 export const programCreateSchema = z.object({
   name,
   description: optionalText,
-  /** Optional initial workouts, e.g. ["A", "B", "C", "D"]. Any count is allowed. */
-  workouts: z.array(name).max(50).optional(),
+  /**
+   * Optional initial workouts: names (["A", "B"]) or { name, weekday } to pin a
+   * workout to a day. Scheduled workouts are put in calendar order.
+   */
+  workouts: z
+    .array(plannedWorkout)
+    .max(50)
+    .refine(hasDistinctWeekdays, 'Each day can hold only one workout')
+    .optional(),
 });
 export const programUpdateSchema = z.object({
   name: name.optional(),
@@ -71,7 +90,7 @@ export const programUpdateSchema = z.object({
 export const programListQuerySchema = z.object({ archived: z.enum(['true', 'false']).optional() });
 
 export const workoutCreateSchema = z.object({ name });
-export const workoutUpdateSchema = z.object({ name });
+export const workoutUpdateSchema = z.object({ name, weekday: weekdaySchema.nullish() });
 export const reorderSchema = z.object({ ids: z.array(idSchema).min(1).max(200) });
 
 const plannedFields = {

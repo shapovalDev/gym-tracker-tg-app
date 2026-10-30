@@ -44,13 +44,14 @@ export interface Res<T = any> {
 }
 
 /** Tiny client bound to one Telegram user. */
-export function client(telegramId: number) {
+export function client(telegramId: number, extraHeaders: Record<string, string> = {}) {
   const auth = authFor(telegramId);
   const call = async <T = any>(method: string, path: string, body?: unknown): Promise<Res<T>> => {
     const res = await app.request(`/api/v1${path}`, {
       method,
       headers: {
         authorization: auth,
+        ...extraHeaders,
         ...(body !== undefined ? { 'content-type': 'application/json' } : {}),
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,

@@ -1,6 +1,8 @@
 import {
   isPermutation,
+  nextScheduledWorkoutId,
   nextWorkoutId,
+  orderBySchedule,
   type ProgramDto,
   type ProgramSummaryDto,
   type WorkoutExerciseDto,
@@ -8,9 +10,11 @@ import {
   type programUpdateSchema,
   type workoutExerciseCreateSchema,
   type workoutExerciseUpdateSchema,
+  type workoutUpdateSchema,
 } from '@gym/shared';
 import type { z } from 'zod';
 import type { Db } from '../db';
+import { clientToday } from '../http/client-day';
 import { badRequest, conflict, notFound } from '../http/errors';
 import {
   applyOrder,
@@ -67,8 +71,17 @@ function toWorkoutExerciseDto(we: WorkoutExerciseRow): WorkoutExerciseDto {
 export async function computeNextWorkoutId(
   db: DbOrTx,
   programId: string,
-  workouts: { id: string; position: number }[],
+  workouts: { id: string; position: number; weekday: number | null }[],
 ): Promise<string | null> {
+  // pinned days: the calendar decides (see nextScheduledWorkoutId)
+  if (workouts.some((w) => w.weekday != null)) {
+    const today = clientToday();
+    const doneToday = await db.workoutSession.count({
+      where: { programId, status: 'completed', startedAt: { gte: today.start, lt: today.end } },
+    });
+    const scheduled = nextScheduledWorkoutId(workouts, today.weekday, doneToday > 0);
+    if (scheduled) return scheduled;
+  }
   const last = await db.workoutSession.findFirst({
     where: { programId, status: 'completed' },
     orderBy: [{ completedAt: 'desc' }, { startedAt: 'desc' }],
@@ -124,6 +137,7 @@ export async function getProgram(
       programId: w.programId,
       name: w.name,
       position: w.position,
+      weekday: w.weekday,
       exercises: w.exercises.map(toWorkoutExerciseDto),
     })),
   };
@@ -142,7 +156,10 @@ export async function createProgram(
         name: input.name,
         description: input.description,
         isActive: hasActive === 0, // first program becomes active automatically
-        workouts: { create: (input.workouts ?? []).map((name, position) => ({ name, position })) },
+        // a cycle with pinned days follows the calendar
+        workouts: {
+          create: orderBySchedule(input.workouts ?? []).map((w, position) => ({ ...w, position })),
+        },
       },
     });
     return program.id;
@@ -207,6 +224,7 @@ export async function duplicateProgram(db: Db, userId: string, programId: string
           programId: copy.id,
           name: w.name,
           position: w.position,
+          weekday: w.weekday,
           exercises: { create: w.exercises.map(copyPlannedExercise) },
         },
       });
@@ -243,9 +261,24 @@ export async function addWorkout(db: Db, userId: string, programId: string, name
   return getProgram(db, userId, programId);
 }
 
-export async function renameWorkout(db: Db, userId: string, workoutId: string, name: string) {
+/** Renames a workout and, when `weekday` is sent, moves it to that day (null clears it). */
+export async function updateWorkout(
+  db: Db,
+  userId: string,
+  workoutId: string,
+  input: z.output<typeof workoutUpdateSchema>,
+) {
   const w = await ownedWorkout(db, userId, workoutId);
-  await db.programWorkout.update({ where: { id: workoutId }, data: { name } });
+  if (input.weekday != null) {
+    const taken = await db.programWorkout.count({
+      where: { programId: w.programId, weekday: input.weekday, id: { not: workoutId } },
+    });
+    if (taken) throw conflict('WEEKDAY_TAKEN', 'Another workout is already planned for this day');
+  }
+  await db.programWorkout.update({
+    where: { id: workoutId },
+    data: { name: input.name, ...(input.weekday !== undefined && { weekday: input.weekday }) },
+  });
   return getProgram(db, userId, w.programId);
 }
 

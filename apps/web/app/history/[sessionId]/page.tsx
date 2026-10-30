@@ -4,15 +4,7 @@ import { setLabels, setsOfType, type SessionDto, type SetDto } from '@gym/shared
 import { useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import {
-  Button,
-  ConfirmSheet,
-  ErrorState,
-  PageHeader,
-  PageLoader,
-  Section,
-  Stat,
-} from '@/components/ui';
+import { Button, ConfirmSheet, ErrorState, PageHeader, PageLoader, Section } from '@/components/ui';
 import { SetEntry, type SetEntryValue } from '@/features/workout/set-entry';
 import { SetRow } from '@/features/workout/set-list';
 import { errorMessage, http } from '@/lib/api';
@@ -98,6 +90,11 @@ export default function SessionDetailPage() {
         </p>
       )}
       <SummaryGrid s={s} />
+      {editable && (
+        <p className="px-1 text-[13px] text-muted">
+          {t('Tap a set to fix the weight or reps. Statistics update immediately.')}
+        </p>
+      )}
       {s.exercises.map((e) => {
         const labels = setLabels(e.sets, t('W'));
         return (
@@ -163,9 +160,6 @@ export default function SessionDetailPage() {
           </Section>
         );
       })}
-      <p className="px-1 text-[13px] text-muted">
-        {t('Tap a set to fix the weight or reps. Statistics update immediately.')}
-      </p>
       <Button block variant="danger" onClick={() => setDeleting(true)}>
         {t('Delete workout')}
       </Button>
@@ -194,17 +188,30 @@ export default function SessionDetailPage() {
 
 function SummaryGrid({ s }: { s: SessionDto }) {
   return (
-    <div className="grid grid-cols-2 gap-3">
-      <Stat label={t('Total duration')} value={formatDuration(s.summary.durationSeconds)} />
-      <Stat label={t('Volume')} value={formatVolume(s.summary.volumeKg)} />
-      <Stat label={t('Exercises')} value={s.summary.exercisesCompleted} />
-      <Stat
+    <dl className="grid grid-cols-2 border-y border-line [&>div:nth-child(2n)]:border-l [&>div:nth-child(2n)]:pl-4 [&>div:nth-child(n+3)]:border-t [&>div]:border-line [&>div]:py-3">
+      <Metric label={t('Total duration')} value={formatDuration(s.summary.durationSeconds)} />
+      <Metric label={t('Volume')} value={formatVolume(s.summary.volumeKg)} />
+      <Metric label={t('Exercises')} value={String(s.summary.exercisesCompleted)} />
+      <Metric
         label={t('Sets')}
-        value={s.summary.totalSets}
+        value={String(s.summary.totalSets)}
         sub={
           s.summary.skippedSets ? t('{n} more skipped', { n: s.summary.skippedSets }) : undefined
         }
       />
+    </dl>
+  );
+}
+
+function Metric({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    // dt must come first in a <dl> group; the value is shown above the label
+    <div className="flex flex-col-reverse">
+      <dt className="mt-1.5 text-[12px] text-muted">
+        {label}
+        {sub && ` · ${sub}`}
+      </dt>
+      <dd className="num text-[26px] leading-none font-semibold">{value}</dd>
     </div>
   );
 }

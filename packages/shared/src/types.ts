@@ -32,6 +32,8 @@ export interface ProgramWorkoutDto {
   programId: string;
   name: string;
   position: number;
+  /** Day of the week the workout is planned for (0 = Monday), if any. */
+  weekday: number | null;
   exercises: WorkoutExerciseDto[];
 }
 
@@ -120,11 +122,19 @@ export interface Paginated<T> {
 }
 
 export interface HomeDto {
-  activeProgram: { id: string; name: string; workoutCount: number } | null;
+  activeProgram: {
+    id: string;
+    name: string;
+    workoutCount: number;
+    /** Workouts pinned to a day of the week (0 = Monday), in cycle order. */
+    schedule: { weekday: number; position: number }[];
+  } | null;
   nextWorkout: {
     id: string;
     name: string;
     position: number;
+    /** Day the workout is planned for (0 = Monday), if the program has a schedule. */
+    weekday: number | null;
     exerciseCount: number;
     exerciseNames: string[];
   } | null;
@@ -132,6 +142,12 @@ export interface HomeDto {
   lastSession: SessionListItemDto | null;
   completedLast7Days: number;
   completedLast30Days: number;
+  /**
+   * Completed workouts of the last 8 days, for the week strip (the client
+   * buckets them into days in the user's time zone). `position` is the
+   * workout's place in the active program's cycle, if it belongs to it.
+   */
+  recentWorkouts: { startedAt: string; position: number | null }[];
 }
 
 export interface MeDto {

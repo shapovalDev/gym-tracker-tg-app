@@ -47,11 +47,11 @@ describe('SetEntry', () => {
   it('pre-fills a suggestion that steppers can adjust', async () => {
     const onSubmit = vi.fn();
     render(<SetEntry suggestion={{ weightKg: 40, reps: 10 }} onSubmit={onSubmit} />);
-    await userEvent.click(screen.getByRole('button', { name: 'Weight, kg: increase by 2.5' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Weight, kg: increase by 1' }));
     await userEvent.click(screen.getByRole('button', { name: 'Reps: decrease by 1' }));
     await userEvent.click(screen.getByRole('button', { name: /Record set/ }));
     expect(onSubmit).toHaveBeenCalledWith({
-      weightKg: 42.5,
+      weightKg: 41,
       reps: 9,
       status: 'completed',
       setType: 'working',

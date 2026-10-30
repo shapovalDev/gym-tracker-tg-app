@@ -2,9 +2,11 @@
 
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
+import type { SessionListItemDto } from '@gym/shared';
 import {
   Button,
   Chip,
+  DateBlock,
   EmptyState,
   ErrorState,
   Field,
@@ -12,9 +14,9 @@ import {
   PageLoader,
 } from '@/components/ui';
 import { errorMessage } from '@/lib/api';
-import { formatDate, formatDuration, formatTime, formatVolume } from '@/lib/format';
+import { formatDuration, formatTime, formatVolume } from '@/lib/format';
 import { useHistory } from '@/lib/queries';
-import { count, t } from '@/i18n';
+import { count, intlLocale, t } from '@/i18n';
 
 type Range = 'all' | '30' | '90' | 'custom';
 
@@ -52,7 +54,7 @@ export default function HistoryPage() {
     <>
       <PageHeader title={t('History')} />
       <div
-        className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1"
+        className="scroll-row -mx-4 flex gap-2 overflow-x-auto px-4 pb-1"
         role="group"
         aria-label={t('Period')}
       >
@@ -100,35 +102,54 @@ export default function HistoryPage() {
           }
         />
       ) : (
-        <ul className="space-y-2.5">
-          {items.map((s) => (
-            <li key={s.id}>
-              <Link
-                href={`/history/${s.id}`}
-                className="press block rounded-[22px] border border-line bg-card p-4"
-              >
-                <div className="flex items-baseline justify-between gap-3">
-                  <span className="truncate text-[17px] font-semibold">
-                    {s.workoutName ?? t('Free workout')}
-                  </span>
-                  <span className="shrink-0 text-[14px] text-muted">
-                    {formatDate(s.startedAt)}, {formatTime(s.startedAt)}
-                  </span>
-                </div>
-                {s.exerciseNames.length > 0 && (
-                  <p className="mt-1 line-clamp-2 text-[14px] text-muted">
-                    {s.exerciseNames.join(', ')}
-                  </p>
-                )}
-                <p className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-[14px]">
-                  <span>{formatDuration(s.summary.durationSeconds)}</span>
-                  <span>{count(s.summary.totalSets, 'set')}</span>
-                  <span>{formatVolume(s.summary.volumeKg)}</span>
-                </p>
-              </Link>
-            </li>
+        <div className="space-y-5">
+          {byMonth(items).map((g) => (
+            <section key={g.key} className="space-y-2">
+              <div className="flex items-baseline justify-between gap-3 px-1">
+                <h2 className="display text-[20px] leading-none font-semibold">{g.title}</h2>
+                <span className="text-[13px] text-muted">{count(g.items.length, 'workout')}</span>
+              </div>
+              <ul className="space-y-2">
+                {g.items.map((s) => (
+                  <li key={s.id}>
+                    <Link
+                      href={`/history/${s.id}`}
+                      className="press flex items-center gap-3 rounded-2xl border border-line bg-card p-3"
+                    >
+                      <DateBlock iso={s.startedAt} />
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-baseline justify-between gap-2">
+                          <span className="truncate text-[16px] font-semibold">
+                            {s.workoutName ?? t('Free workout')}
+                          </span>
+                          <span className="shrink-0 text-[13px] text-muted">
+                            {formatTime(s.startedAt)}
+                          </span>
+                        </span>
+                        {s.exerciseNames.length > 0 && (
+                          <span className="block truncate text-[13px] text-muted">
+                            {s.exerciseNames.join(', ')}
+                          </span>
+                        )}
+                        <span className="num mt-1.5 flex flex-wrap items-center gap-x-2 text-[15px] font-semibold">
+                          <span>{formatDuration(s.summary.durationSeconds)}</span>
+                          <span aria-hidden className="text-muted">
+                            ·
+                          </span>
+                          <span>{count(s.summary.totalSets, 'set')}</span>
+                          <span aria-hidden className="text-muted">
+                            ·
+                          </span>
+                          <span>{formatVolume(s.summary.volumeKg)}</span>
+                        </span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
           ))}
-        </ul>
+        </div>
       )}
       {hasNextPage && (
         <Button
@@ -142,4 +163,26 @@ export default function HistoryPage() {
       )}
     </>
   );
+}
+
+/** Groups the (newest-first) list by calendar month, in local time. */
+function byMonth(items: SessionListItemDto[]) {
+  const fmt = new Intl.DateTimeFormat(intlLocale(), { month: 'long', year: 'numeric' });
+  const thisYear = new Date().getFullYear();
+  const groups: { key: string; title: string; items: SessionListItemDto[] }[] = [];
+  for (const s of items) {
+    const d = new Date(s.startedAt);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    let g = groups.at(-1);
+    if (g?.key !== key) {
+      const title =
+        d.getFullYear() === thisYear
+          ? new Intl.DateTimeFormat(intlLocale(), { month: 'long' }).format(d)
+          : fmt.format(d);
+      g = { key, title: title.charAt(0).toUpperCase() + title.slice(1), items: [] };
+      groups.push(g);
+    }
+    g.items.push(s);
+  }
+  return groups;
 }

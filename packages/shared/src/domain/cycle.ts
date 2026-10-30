@@ -9,6 +9,9 @@
  * Cancelled and in-progress sessions never advance the cycle. Rest days are
  * irrelevant because time is not part of the calculation. Each program keeps
  * its own position, so switching the active program is lossless.
+ *
+ * Programs whose workouts are pinned to days of the week follow the calendar
+ * instead: see nextScheduledWorkoutId in ./schedule.
  */
 export interface CycleWorkout {
   id: string;

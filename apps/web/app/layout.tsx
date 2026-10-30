@@ -1,9 +1,10 @@
 import type { Metadata, Viewport } from 'next';
-import { Golos_Text, Unbounded } from 'next/font/google';
+import { Golos_Text, Oswald } from 'next/font/google';
 import Script from 'next/script';
 import type { ReactNode } from 'react';
 import { Providers } from '@/components/providers';
 import { Shell } from '@/components/shell';
+import { THEME_KEY } from '@/lib/theme-key';
 import './globals.css';
 
 // Self-hosted at build time (no runtime requests to Google).
@@ -12,7 +13,8 @@ const body = Golos_Text({
   variable: '--font-body',
   display: 'swap',
 });
-const display = Unbounded({
+// Condensed display face for titles, numbers and primary actions.
+const display = Oswald({
   subsets: ['latin', 'cyrillic'],
   weight: ['500', '600', '700'],
   variable: '--font-display-face',
@@ -40,6 +42,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en" suppressHydrationWarning className={`${body.variable} ${display.variable}`}>
       <head>
         <Script src="https://telegram.org/js/telegram-web-app.js?59" strategy="beforeInteractive" />
+        {/* Theme chosen in settings, applied before first paint (see src/lib/theme.ts). */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem('${THEME_KEY}');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch(e){}`,
+          }}
+        />
       </head>
       <body>
         <Providers>

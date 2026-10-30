@@ -164,7 +164,7 @@ function Progress() {
           <>
             <Card className="space-y-3 p-4">
               <div
-                className="-mx-1 flex gap-2 overflow-x-auto px-1"
+                className="scroll-row -mx-1 flex gap-2 overflow-x-auto px-1"
                 role="group"
                 aria-label={t('What to show on the chart')}
               >
@@ -180,7 +180,7 @@ function Progress() {
               </div>
               {metric === 'reps' && a.availableWeights.length > 0 && (
                 <div
-                  className="-mx-1 flex items-center gap-2 overflow-x-auto px-1"
+                  className="scroll-row -mx-1 flex items-center gap-2 overflow-x-auto px-1"
                   role="group"
                   aria-label={t('Weight to compare reps at')}
                 >

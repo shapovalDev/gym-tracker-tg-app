@@ -60,3 +60,8 @@ export const NoteIcon = () => (
     <path d="M4 5h16M4 10h16M4 15h10" />
   </svg>
 );
+export const ListIcon = () => (
+  <svg {...base}>
+    <path d="M4 7h16M4 12h16M4 17h10" />
+  </svg>
+);

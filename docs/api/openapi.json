@@ -89,6 +89,54 @@
             "$ref": "#/components/responses/Unauthorized"
           }
         }
+      },
+      "patch": {
+        "tags": ["Me"],
+        "summary": "Update preferences (UI language)",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "locale": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": ["en", "uk"]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": ["locale"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "`MeDto` (see packages/shared/src/types.ts)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
       }
     },
     "/me/home": {
@@ -614,9 +662,36 @@
                     "maxItems": 50,
                     "type": "array",
                     "items": {
-                      "type": "string",
-                      "minLength": 1,
-                      "maxLength": 100
+                      "anyOf": [
+                        {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 100
+                        },
+                        {
+                          "type": "object",
+                          "properties": {
+                            "name": {
+                              "type": "string",
+                              "minLength": 1,
+                              "maxLength": 100
+                            },
+                            "weekday": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0,
+                                  "maximum": 6
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": ["name"]
+                        }
+                      ]
                     }
                   }
                 },
@@ -922,6 +997,24 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "description": "`ProgramDto` (see packages/shared/src/types.ts)",
@@ -1088,7 +1181,7 @@
     "/workouts/{workoutId}": {
       "patch": {
         "tags": ["Workouts"],
-        "summary": "Rename workout",
+        "summary": "Rename workout or change its day of the week",
         "parameters": [
           {
             "name": "workoutId",
@@ -1112,6 +1205,18 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 100
+                  },
+                  "weekday": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 6
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 },
                 "required": ["name"]
@@ -1138,6 +1243,16 @@
           },
           "404": {
             "description": "Not found or not owned by the current user",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "WEEKDAY_TAKEN: another workout is planned for this day",
             "content": {
               "application/json": {
                 "schema": {
@@ -1207,6 +1322,24 @@
             }
           }
         ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  }
+                }
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
             "description": "`ProgramDto` (see packages/shared/src/types.ts)",
