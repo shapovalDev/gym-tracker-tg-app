@@ -17,6 +17,21 @@ const envSchema = z.object({
     .transform((v) => v === 'true'),
   DEV_TELEGRAM_USER_ID: z.coerce.number().int().positive().default(100000001),
   CORS_ORIGIN: z.string().optional(),
+  // Comma-separated Telegram user ids allowed to use the API. Unset or empty = anyone.
+  ALLOWED_TELEGRAM_IDS: z
+    .string()
+    .optional()
+    .transform((v, ctx) => {
+      const ids = (v ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (ids.some((id) => !/^[1-9]\d{0,19}$/.test(id))) {
+        ctx.addIssue({ code: 'custom', message: 'Expected comma-separated Telegram user ids' });
+        return z.NEVER;
+      }
+      return ids.length ? new Set(ids) : null;
+    }),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -25,6 +25,8 @@ export const uk = {
   'Could not save': 'Не вдалося зберегти',
   'No connection to the server': 'Немає зʼєднання з сервером',
   'Could not sign in with Telegram': 'Не вдалося увійти через Telegram',
+  'This app is private. Ask the owner for access.':
+    'Це приватний застосунок. Попросіть доступ у власника.',
   'Check the entered data': 'Перевірте введені дані',
   'Something went wrong': 'Щось пішло не так',
   'Open the app from the Telegram bot': 'Відкрийте застосунок через Telegram-бота',

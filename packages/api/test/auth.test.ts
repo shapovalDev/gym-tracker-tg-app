@@ -1,7 +1,8 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import { signInitData, verifyInitData } from '../src/auth/telegram';
 import { parseEnv } from '../src/env';
-import { app, BOT_TOKEN, resetDb } from './helpers';
+import { createApp } from '../src/app';
+import { app, BOT_TOKEN, db, envSource, resetDb } from './helpers';
 
 beforeAll(resetDb);
 
@@ -129,5 +130,31 @@ describe('telegram webhook', () => {
       body: JSON.stringify({ update_id: 1 }),
     });
     expect(res.status).toBe(200);
+  });
+});
+
+describe('ALLOWED_TELEGRAM_IDS', () => {
+  const allowEnv = parseEnv({ ...envSource, ALLOWED_TELEGRAM_IDS: ' 4242, 4343 ' });
+  const privateApp = createApp({ env: allowEnv, db });
+  const me = (id: number) =>
+    privateApp.request('/api/v1/me', {
+      headers: { authorization: `tma ${signInitData(BOT_TOKEN, { id })}` },
+    });
+
+  it('lets listed users in', async () => {
+    expect((await me(4242)).status).toBe(200);
+    expect((await me(4343)).status).toBe(200);
+  });
+  it('rejects everyone else with 403 and does not create a user row', async () => {
+    const res = await me(777001);
+    expect(res.status).toBe(403);
+    expect(((await res.json()) as any).error.code).toBe('FORBIDDEN');
+    expect(await db.user.count({ where: { telegramId: 777001n } })).toBe(0);
+  });
+  it('treats an empty list as no restriction and rejects malformed ids', () => {
+    expect(parseEnv({ ...envSource, ALLOWED_TELEGRAM_IDS: '' }).ALLOWED_TELEGRAM_IDS).toBeNull();
+    expect(() => parseEnv({ ...envSource, ALLOWED_TELEGRAM_IDS: '12,abc' })).toThrow(
+      /ALLOWED_TELEGRAM_IDS/,
+    );
   });
 });

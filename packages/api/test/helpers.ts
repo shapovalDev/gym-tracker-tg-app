@@ -16,14 +16,15 @@ function testUrl() {
   return u.toString();
 }
 
-export const env = parseEnv({
+export const envSource = {
   NODE_ENV: 'test',
   DATABASE_URL: testUrl(),
   TELEGRAM_BOT_TOKEN: BOT_TOKEN,
   TELEGRAM_WEBHOOK_SECRET: 'hook-secret',
   PUBLIC_APP_URL: 'https://example.test',
   ALLOW_DEV_AUTH: 'false',
-});
+};
+export const env = parseEnv(envSource);
 export const db = createDb(env.DATABASE_URL);
 export const app = createApp({ env, db });
 

@@ -30,6 +30,10 @@ export const requireAuth: MiddlewareHandler<AppEnv> = async (c, next) => {
   }
   const telegramId = BigInt(result.user.id);
   const cacheKey = telegramId.toString();
+  // Checked before the user row is created, so strangers leave no trace in the DB.
+  if (env.ALLOWED_TELEGRAM_IDS && !env.ALLOWED_TELEGRAM_IDS.has(cacheKey)) {
+    return c.json(errorBody('FORBIDDEN', 'This app is private'), 403);
+  }
   let userId = userCache.get(cacheKey);
   if (!userId) {
     userId = await findOrCreateUser(c.get('db'), telegramId);

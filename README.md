@@ -75,6 +75,7 @@ Swagger UI: http://localhost:3000/api/docs.
 | `ALLOW_DEV_AUTH`            | no             | `true` only locally. In production the server refuses to start with it |
 | `DEV_TELEGRAM_USER_ID`      | no             | Id of the dev user                                                     |
 | `CORS_ORIGIN`               | no             | Only needed when the API is deployed separately from the frontend      |
+| `ALLOWED_TELEGRAM_IDS`      | no             | Comma-separated Telegram user ids allowed in; everyone else gets 403   |
 | `API_PORT`                  | no             | Port of the standalone API server                                      |
 
 ## Deploying for $0: Supabase + Vercel + Telegram

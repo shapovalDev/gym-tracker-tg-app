@@ -71,6 +71,7 @@ export function errorMessage(e: unknown): string {
   if (e instanceof NetworkError) return t('No connection to the server');
   if (e instanceof ApiError) {
     if (e.status === 401) return t('Could not sign in with Telegram');
+    if (e.code === 'FORBIDDEN') return t('This app is private. Ask the owner for access.');
     if (e.code === 'VALIDATION_ERROR') return t('Check the entered data');
     const known: Partial<Record<string, MsgKey>> = {
       SESSION_IN_PROGRESS: 'Finish or cancel the current workout first',
