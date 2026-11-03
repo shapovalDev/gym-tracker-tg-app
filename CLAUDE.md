@@ -19,6 +19,7 @@ Telegram Mini App for strength-training tracking. pnpm monorepo. UI is localised
 - Weights: `NUMERIC(6,2)`, use `toCentiKg`/`roundWeightKg` for arithmetic.
 - Set writes are idempotent (`PUT /sessions/:id/sets/:clientUuid`). Keep new write endpoints retry-safe.
 - Partial unique indexes and CHECK constraints are hand-written in migration SQL — preserve them when generating new migrations (`prisma migrate dev --create-only`, then review).
+- Production DB is Supabase, whose Data API exposes the `public` schema to the `anon` key. Every new table needs `ALTER TABLE "X" ENABLE ROW LEVEL SECURITY;` (no policies) in its migration — Prisma connects as the owner and bypasses RLS. See migration `20261103120000_enable_rls`.
 - Never weaken `initData` verification; local dev uses `/api/v1/dev/init-data` (signed with the real token, dev only).
 
 - UI strings: write `t('English source text')` from `@/i18n` and add the Ukrainian translation to `src/i18n/uk.ts` (the compiler rejects missing keys). Plurals: `count(n, 'set')` / `tn`. Never call `t()` at module level — translate at render time. The language is stored per user (`User.locale`, `PATCH /me`).
