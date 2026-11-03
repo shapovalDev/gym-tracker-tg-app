@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Golos_Text, Oswald } from 'next/font/google';
 import Script from 'next/script';
 import type { ReactNode } from 'react';
+import { AccessGate } from '@/components/access-gate';
 import { Providers } from '@/components/providers';
 import { Shell } from '@/components/shell';
 import { THEME_KEY } from '@/lib/theme-key';
@@ -51,7 +52,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body>
         <Providers>
-          <Shell>{children}</Shell>
+          <AccessGate>
+            <Shell>{children}</Shell>
+          </AccessGate>
         </Providers>
       </body>
     </html>
