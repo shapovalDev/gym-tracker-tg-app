@@ -1,4 +1,5 @@
 import {
+  isTimed,
   MAX_SETS_PER_EXERCISE,
   summarizeSession,
   type Paginated,
@@ -12,7 +13,7 @@ import {
 import type { z } from 'zod';
 import type { Db } from '../db';
 import { Prisma, type SessionStatus } from '../generated/prisma/client';
-import { conflict, notFound } from '../http/errors';
+import { AppError, conflict, notFound } from '../http/errors';
 import {
   decimalToNumber,
   iso,
@@ -26,7 +27,7 @@ const sessionInclude = {
   exercises: {
     orderBy: [{ position: 'asc' as const }, { createdAt: 'asc' as const }],
     include: {
-      exercise: { select: { muscleGroup: true, description: true } },
+      exercise: { select: { muscleGroup: true, description: true, trackingType: true } },
       sets: { orderBy: [{ setNumber: 'asc' as const }, { createdAt: 'asc' as const }] },
     },
   },
@@ -41,6 +42,7 @@ function toSetDto(s: SetRow): SetDto {
     setNumber: s.setNumber,
     weightKg: decimalToNumber(s.weightKg),
     reps: s.reps,
+    durationSec: s.durationSec,
     status: s.status,
     setType: s.setType,
     note: s.note,
@@ -53,10 +55,12 @@ function summaryOf(s: SessionRow) {
     startedAt: s.startedAt,
     completedAt: s.completedAt,
     exercises: s.exercises.map((e) => ({
+      trackingType: e.exercise.trackingType,
       sets: e.sets.map((x) => ({
         status: x.status,
         setType: x.setType,
         reps: x.reps,
+        durationSec: x.durationSec,
         weightKg: decimalToNumber(x.weightKg),
       })),
     })),
@@ -98,6 +102,7 @@ async function previousResults(db: DbOrTx, userId: string, s: SessionRow) {
         setNumber: x.setNumber,
         weightKg: decimalToNumber(x.weightKg),
         reps: x.reps,
+        durationSec: x.durationSec,
         status: x.status,
         setType: x.setType,
         note: x.note,
@@ -129,6 +134,7 @@ async function loadSession(db: DbOrTx, userId: string, sessionId: string): Promi
       exerciseId: e.exerciseId,
       name: e.exerciseNameSnapshot,
       muscleGroup: e.exercise.muscleGroup,
+      trackingType: e.exercise.trackingType,
       description: e.exercise.description,
       position: e.position,
       plannedSets: e.plannedSets,
@@ -312,14 +318,26 @@ export async function upsertSet(
   assertEditable(session.status);
   const sessionExercise = await db.sessionExercise.findFirst({
     where: { id: input.sessionExerciseId, sessionId },
-    select: { id: true },
+    select: { id: true, exercise: { select: { trackingType: true } } },
   });
   if (!sessionExercise) throw notFound('Session exercise');
+  // Timed exercises record seconds, the rest record reps; the other field is cleared.
+  const timed = isTimed(sessionExercise.exercise.trackingType);
+  const reps = timed ? 0 : input.reps;
+  const durationSec = timed ? (input.durationSec ?? 0) : null;
+  if (input.status === 'completed' && (timed ? durationSec! < 1 : reps < 1)) {
+    const path = timed ? 'durationSec' : 'reps';
+    const message = timed
+      ? 'A completed timed set needs at least 1 second'
+      : 'A completed set needs at least 1 repetition';
+    throw new AppError(400, 'VALIDATION_ERROR', 'Invalid request', [{ path, message }]);
+  }
 
   const data = {
     setNumber: input.setNumber,
     weightKg: new Prisma.Decimal(input.weightKg.toFixed(2)),
-    reps: input.reps,
+    reps,
+    durationSec,
     status: input.status,
     setType: input.setType,
     note: input.note,

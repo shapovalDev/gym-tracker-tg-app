@@ -31,6 +31,7 @@ async function exerciseSets(
   db: Db,
   userId: string,
   exerciseId: string,
+  trackingType: MetricSet['trackingType'],
   from: Date | null,
 ): Promise<MetricSet[]> {
   const rows = await db.exerciseSet.findMany({
@@ -43,6 +44,7 @@ async function exerciseSets(
     select: {
       weightKg: true,
       reps: true,
+      durationSec: true,
       status: true,
       setType: true,
       sessionExercise: { select: { session: { select: { id: true, startedAt: true } } } },
@@ -53,8 +55,10 @@ async function exerciseSets(
     date: r.sessionExercise.session.startedAt,
     weightKg: decimalToNumber(r.weightKg),
     reps: r.reps,
+    durationSec: r.durationSec,
     status: r.status,
     setType: r.setType,
+    trackingType,
   }));
 }
 
@@ -67,7 +71,8 @@ export async function exerciseAnalytics(
 ): Promise<ExerciseAnalyticsDto> {
   const exercise = await ownedExercise(db, userId, exerciseId);
   const now = new Date();
-  const all = await exerciseSets(db, userId, exerciseId, null); // records are all-time
+  // records are all-time
+  const all = await exerciseSets(db, userId, exerciseId, exercise.trackingType, null);
   const range = periodRange(period, now);
   const prevRange = previousPeriodRange(period, now);
   const current = filterByDateRange(all, (s) => s.date, range);
@@ -90,6 +95,7 @@ export async function exerciseAnalytics(
       id: exercise.id,
       name: exercise.name,
       muscleGroup: exercise.muscleGroup,
+      trackingType: exercise.trackingType,
       archivedAt: iso(exercise.archivedAt),
     },
     period,
@@ -125,14 +131,23 @@ async function periodTotals(db: Db, userId: string, from: Date | null, to: Date)
           },
         },
       },
-      select: { weightKg: true, reps: true, status: true, setType: true },
+      select: {
+        weightKg: true,
+        reps: true,
+        durationSec: true,
+        status: true,
+        setType: true,
+        sessionExercise: { select: { exercise: { select: { trackingType: true } } } },
+      },
     }),
   ]);
   const metricSets = sets.map((s) => ({
     weightKg: decimalToNumber(s.weightKg),
     reps: s.reps,
+    durationSec: s.durationSec,
     status: s.status,
     setType: s.setType,
+    trackingType: s.sessionExercise.exercise.trackingType,
   }));
   return {
     completedWorkouts,

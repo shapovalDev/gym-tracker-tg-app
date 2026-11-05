@@ -79,6 +79,8 @@ export function errorMessage(e: unknown): string {
       EXERCISE_ARCHIVED: 'Archived exercises cannot be added',
       PROGRAM_ARCHIVED: 'Restore the program from the archive first',
       TOO_MANY_SETS: 'Too many sets for one exercise',
+      TRACKING_TYPE_LOCKED:
+        'This exercise already has sets. A timed type cannot be switched to or from a rep-based one.',
       NOT_FOUND: 'Not found. It may have been deleted.',
     };
     const key = known[e.code];

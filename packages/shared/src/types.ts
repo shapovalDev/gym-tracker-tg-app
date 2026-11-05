@@ -1,4 +1,11 @@
-import type { MuscleGroup, Period, SessionStatus, SetStatus, SetType } from './constants';
+import type {
+  MuscleGroup,
+  Period,
+  SessionStatus,
+  SetStatus,
+  SetType,
+  TrackingType,
+} from './constants';
 import type { PersonalRecords, SessionPoint, SessionSummary } from './domain/metrics';
 
 /** API response DTOs (dates are ISO strings). */
@@ -12,6 +19,7 @@ export interface ExerciseDto {
   name: string;
   muscleGroup: MuscleGroup | null;
   description: string | null;
+  trackingType: TrackingType;
   archivedAt: string | null;
   createdAt: string;
 }
@@ -19,7 +27,10 @@ export interface ExerciseDto {
 export interface WorkoutExerciseDto {
   id: string;
   exerciseId: string;
-  exercise: Pick<ExerciseDto, 'id' | 'name' | 'muscleGroup' | 'description' | 'archivedAt'>;
+  exercise: Pick<
+    ExerciseDto,
+    'id' | 'name' | 'muscleGroup' | 'description' | 'trackingType' | 'archivedAt'
+  >;
   position: number;
   plannedSets: number | null;
   targetRepsMin: number | null;
@@ -57,8 +68,11 @@ export interface SetDto {
   id: string;
   sessionExerciseId: string;
   setNumber: number;
+  /** Load; extra load for body-weight and timed exercises; counterweight for assisted ones. */
   weightKg: number;
   reps: number;
+  /** Timed exercises only. */
+  durationSec: number | null;
   status: SetStatus;
   setType: SetType;
   note: string | null;
@@ -68,7 +82,10 @@ export interface SetDto {
 export interface PreviousResultDto {
   sessionId: string;
   date: string;
-  sets: Pick<SetDto, 'setNumber' | 'weightKg' | 'reps' | 'status' | 'setType' | 'note'>[];
+  sets: Pick<
+    SetDto,
+    'setNumber' | 'weightKg' | 'reps' | 'durationSec' | 'status' | 'setType' | 'note'
+  >[];
 }
 
 /** One past session of an exercise, for the "exercise history" sheet. */
@@ -81,6 +98,8 @@ export interface SessionExerciseDto {
   exerciseId: string;
   name: string;
   muscleGroup: MuscleGroup | null;
+  /** How the exercise is measured (current value, so a corrected type applies to history). */
+  trackingType: TrackingType;
   /** Technique notes from the exercise library (current value). */
   description: string | null;
   position: number;
@@ -158,7 +177,7 @@ export interface MeDto {
 }
 
 export interface ExerciseAnalyticsDto {
-  exercise: Pick<ExerciseDto, 'id' | 'name' | 'muscleGroup' | 'archivedAt'>;
+  exercise: Pick<ExerciseDto, 'id' | 'name' | 'muscleGroup' | 'trackingType' | 'archivedAt'>;
   period: Period;
   weightKg: number | null;
   points: SessionPoint[];

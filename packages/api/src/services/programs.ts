@@ -31,7 +31,14 @@ const workoutInclude = {
     orderBy: { position: 'asc' as const },
     include: {
       exercise: {
-        select: { id: true, name: true, muscleGroup: true, description: true, archivedAt: true },
+        select: {
+          id: true,
+          name: true,
+          muscleGroup: true,
+          description: true,
+          trackingType: true,
+          archivedAt: true,
+        },
       },
     },
   },
@@ -50,6 +57,7 @@ type WorkoutExerciseRow = {
     name: string;
     muscleGroup: WorkoutExerciseDto['exercise']['muscleGroup'];
     description: string | null;
+    trackingType: WorkoutExerciseDto['exercise']['trackingType'];
     archivedAt: Date | null;
   };
 };

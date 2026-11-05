@@ -1,4 +1,4 @@
-import type { ExerciseDto, ExerciseHistoryEntryDto } from '@gym/shared';
+import { sameSetStorage, type ExerciseDto, type ExerciseHistoryEntryDto } from '@gym/shared';
 import type { z } from 'zod';
 import type {
   exerciseCreateSchema,
@@ -7,6 +7,7 @@ import type {
 } from '@gym/shared';
 import type { Db } from '../db';
 import type { Exercise } from '../generated/prisma/client';
+import { conflict } from '../http/errors';
 import { decimalToNumber, iso, ownedExercise } from './common';
 
 export function toExerciseDto(e: Exercise): ExerciseDto {
@@ -15,6 +16,7 @@ export function toExerciseDto(e: Exercise): ExerciseDto {
     name: e.name,
     muscleGroup: e.muscleGroup,
     description: e.description,
+    trackingType: e.trackingType,
     archivedAt: iso(e.archivedAt),
     createdAt: e.createdAt.toISOString(),
   };
@@ -57,7 +59,18 @@ export async function updateExercise(
   id: string,
   input: z.output<typeof exerciseUpdateSchema>,
 ) {
-  await ownedExercise(db, userId, id);
+  const current = await ownedExercise(db, userId, id);
+  // The type is not snapshotted: correcting it reinterprets the whole history,
+  // which is safe between rep-based types (same storage) but would orphan
+  // recorded reps or seconds when switching to or from `duration`.
+  if (input.trackingType && !sameSetStorage(current.trackingType, input.trackingType)) {
+    const recorded = await db.exerciseSet.count({ where: { sessionExercise: { exerciseId: id } } });
+    if (recorded > 0)
+      throw conflict(
+        'TRACKING_TYPE_LOCKED',
+        'Sets are already recorded; switching to or from a timed type is not possible',
+      );
+  }
   // History uses exerciseId + name snapshots, so renaming never breaks analytics.
   const e = await db.exercise.update({ where: { id }, data: input });
   return toExerciseDto(e);
@@ -101,6 +114,7 @@ export async function exerciseHistory(
         setNumber: x.setNumber,
         weightKg: decimalToNumber(x.weightKg),
         reps: x.reps,
+        durationSec: x.durationSec,
         status: x.status,
         setType: x.setType,
         note: x.note,

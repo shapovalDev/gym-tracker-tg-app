@@ -247,7 +247,7 @@ function ActiveWorkout({
                 const completed = workingSets(e).filter((s) => s.status === 'completed').length;
                 const done = isDone(e);
                 const started = !done && e.sets.length > 0;
-                const reps = targetLabel(null, e.targetRepsMin, e.targetRepsMax);
+                const reps = targetLabel(null, e.targetRepsMin, e.targetRepsMax, e.trackingType);
                 return (
                   <li key={e.id}>
                     <button
@@ -412,7 +412,13 @@ function ExerciseView({
   const prevEx = session.exercises[index - 1];
   const nextEx = session.exercises[index + 1];
   const sets = exercise.sets;
-  const target = targetLabel(exercise.plannedSets, exercise.targetRepsMin, exercise.targetRepsMax);
+  const type = exercise.trackingType;
+  const target = targetLabel(
+    exercise.plannedSets,
+    exercise.targetRepsMin,
+    exercise.targetRepsMax,
+    type,
+  );
   const labels = setLabels(sets, t('W'));
   const counts = {
     working: setsOfType(sets, 'working').length,
@@ -425,9 +431,11 @@ function ExerciseView({
   // Suggestion only: last set of today, else the first set from last time.
   const suggestion = useMemo(() => {
     const last = sets.at(-1);
-    if (last) return { weightKg: last.weightKg, reps: last.reps };
+    if (last) return { weightKg: last.weightKg, reps: last.reps, durationSec: last.durationSec };
     const prev = exercise.previous?.sets.find((s) => s.status === 'completed');
-    return prev ? { weightKg: prev.weightKg, reps: prev.reps } : null;
+    return prev
+      ? { weightKg: prev.weightKg, reps: prev.reps, durationSec: prev.durationSec }
+      : null;
   }, [sets, exercise.previous]);
 
   // Rendered state can lag behind fast taps; number new sets from a ref so two
@@ -448,6 +456,7 @@ function ExerciseView({
         setNumber,
         weightKg: v.weightKg,
         reps: v.reps,
+        durationSec: v.durationSec,
         status: v.status,
         setType: v.setType,
         note: v.note,
@@ -489,6 +498,7 @@ function ExerciseView({
 
       <LastTimeButton
         previous={exercise.previous}
+        trackingType={type}
         date={exercise.previous ? formatDate(exercise.previous.date).toLowerCase() : null}
         onOpen={() => setHistoryOpen(true)}
       />
@@ -500,13 +510,14 @@ function ExerciseView({
               <li key={s.id}>
                 <SetEntry
                   key={`edit-${s.id}`}
+                  trackingType={type}
                   title={t('Edit: {name}', {
                     name:
                       s.setType === 'warmup'
                         ? t('Warm-up {n}', { n: (labels.get(s) ?? '').replace(/^\D+/, '') })
                         : t('Set {n}', { n: labels.get(s) ?? '' }),
                   })}
-                  initial={{ weightKg: s.weightKg, reps: s.reps, setType: s.setType, note: s.note }}
+                  initial={s}
                   lastTime={(type) =>
                     lastTimeAt(
                       type,
@@ -522,6 +533,7 @@ function ExerciseView({
               <SetRow
                 key={s.id}
                 set={s}
+                trackingType={type}
                 label={labels.get(s) ?? ''}
                 onEdit={() => setEditing(s)}
                 onDelete={() => remove(s)}
@@ -537,6 +549,7 @@ function ExerciseView({
       {!editing && (
         <SetEntry
           key={`new-${exercise.id}`}
+          trackingType={type}
           counts={counts}
           suggestion={suggestion}
           lastTime={(type) => lastTimeAt(type, counts[type])}
@@ -555,6 +568,7 @@ function ExerciseView({
       <ExerciseHistorySheet
         exerciseId={exercise.exerciseId}
         name={exercise.name}
+        trackingType={type}
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
       />

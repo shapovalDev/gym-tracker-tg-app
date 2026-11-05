@@ -31,6 +31,19 @@ export const SET_TYPES = ['working', 'warmup'] as const;
 export type SetType = (typeof SET_TYPES)[number];
 export const SET_NOTE_MAX = 200;
 
+/**
+ * How an exercise is measured. The three rep-based types share storage
+ * (weightKg + reps) and differ only in meaning of the weight:
+ * - weight_reps: the load (bench press);
+ * - bodyweight:  extra load on top of body weight, 0 = none (pull-ups);
+ * - assisted:    the machine's counterweight, less is better (gravitron);
+ * - duration:    time in durationSec, weightKg = extra load (plank).
+ */
+export const TRACKING_TYPES = ['weight_reps', 'bodyweight', 'assisted', 'duration'] as const;
+export type TrackingType = (typeof TRACKING_TYPES)[number];
+/** Longest timed set: 3 hours. */
+export const DURATION_MAX_SEC = 3 * 3600;
+
 export const PERIODS = ['30d', '90d', '1y', 'all'] as const;
 export type Period = (typeof PERIODS)[number];
 

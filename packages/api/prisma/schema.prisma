@@ -26,6 +26,13 @@ enum SetStatus {
 }
 
 /// Warm-up sets are recorded but excluded from all statistics.
+enum TrackingType {
+  weight_reps
+  bodyweight
+  assisted
+  duration
+}
+
 enum SetType {
   working
   warmup
@@ -62,14 +69,17 @@ model User {
 }
 
 model Exercise {
-  id          String       @id @default(uuid()) @db.Uuid
-  userId      String       @db.Uuid
-  name        String       @db.VarChar(100)
-  muscleGroup MuscleGroup?
-  description String?      @db.VarChar(2000)
-  archivedAt  DateTime?    @db.Timestamptz(3)
-  createdAt   DateTime     @default(now()) @db.Timestamptz(3)
-  updatedAt   DateTime     @updatedAt @db.Timestamptz(3)
+  id           String       @id @default(uuid()) @db.Uuid
+  userId       String       @db.Uuid
+  name         String       @db.VarChar(100)
+  muscleGroup  MuscleGroup?
+  description  String?      @db.VarChar(2000)
+  /// How sets are measured. Current value applies to the whole history
+  /// (switching to/from `duration` is blocked once sets exist).
+  trackingType TrackingType @default(weight_reps)
+  archivedAt   DateTime?    @db.Timestamptz(3)
+  createdAt    DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime     @updatedAt @db.Timestamptz(3)
 
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   workoutExercises WorkoutExercise[]
@@ -180,18 +190,20 @@ model SessionExercise {
 
 model ExerciseSet {
   /// Client-generated UUID: PUT is idempotent, retries never duplicate sets.
-  id                String          @id @db.Uuid
-  sessionExerciseId String          @db.Uuid
+  id                String    @id @db.Uuid
+  sessionExerciseId String    @db.Uuid
   setNumber         Int
   /// kg, 2 decimal places, 0..1000.
-  weightKg          Decimal         @db.Decimal(6, 2)
+  weightKg          Decimal   @db.Decimal(6, 2)
   reps              Int
+  /// Timed exercises only (seconds, 0..10800); null otherwise.
+  durationSec       Int?
   status            SetStatus
-  setType           SetType         @default(working)
+  setType           SetType   @default(working)
   /// Optional free-text comment, up to 200 characters.
-  note              String?         @db.VarChar(200)
-  createdAt         DateTime        @default(now()) @db.Timestamptz(3)
-  updatedAt         DateTime        @updatedAt @db.Timestamptz(3)
+  note              String?   @db.VarChar(200)
+  createdAt         DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @db.Timestamptz(3)
 
   sessionExercise SessionExercise @relation(fields: [sessionExerciseId], references: [id], onDelete: Cascade)
 

@@ -10,6 +10,7 @@ export interface SetBody {
   setNumber: number;
   weightKg: number;
   reps: number;
+  durationSec?: number | null;
   status: SetStatus;
   setType: SetType;
   note: string | null;
@@ -53,6 +54,7 @@ export function applyPending(session: SessionDto, queue: readonly OutboxOp[]): S
         setNumber: op.body.setNumber,
         weightKg: op.body.weightKg,
         reps: op.body.reps,
+        durationSec: op.body.durationSec ?? null,
         status: op.body.status,
         setType: op.body.setType,
         note: op.body.note,

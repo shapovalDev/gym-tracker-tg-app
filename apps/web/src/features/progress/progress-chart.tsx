@@ -10,7 +10,7 @@ import {
   YAxis,
 } from 'recharts';
 import { formatShortDate, formatDate } from '@/lib/format';
-import { t } from '@/i18n';
+import { intlLocale, t } from '@/i18n';
 
 export interface ChartPoint {
   date: string;
@@ -25,10 +25,16 @@ export function ProgressChart({
   points,
   unit,
   label,
+  format = (v) => new Intl.NumberFormat(intlLocale(), { maximumFractionDigits: 2 }).format(v),
+  invert,
 }: {
   points: ChartPoint[];
   unit: string;
   label: string;
+  /** Value text for ticks and the tooltip (e.g. "1:15" for seconds). */
+  format?: (v: number) => string;
+  /** Lower is better (counterweight): flip the axis so progress still goes up. */
+  invert?: boolean;
 }) {
   const data = points.map((p) => ({ ...p, t: new Date(p.date).getTime() }));
   const values = data.map((d) => d.value);
@@ -59,6 +65,8 @@ export function ProgressChart({
             axisLine={false}
             tickLine={false}
             allowDecimals={false}
+            reversed={invert}
+            tickFormatter={(v: number) => format(v)}
           />
           <Tooltip
             cursor={{ stroke: 'var(--muted)', strokeDasharray: '3 3' }}
@@ -69,8 +77,8 @@ export function ProgressChart({
                 <div className="rounded-xl bg-ink px-3 py-2 text-card shadow-lg">
                   <div className="text-xs opacity-75">{formatDate(p.date)}</div>
                   <div className="num text-[16px] font-semibold">
-                    {new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 }).format(p.value)}{' '}
-                    {unit}
+                    {format(p.value)}
+                    {unit && ` ${unit}`}
                   </div>
                 </div>
               );

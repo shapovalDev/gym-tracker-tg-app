@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -16,6 +16,7 @@ describe('SetEntry', () => {
     expect(onSubmit).toHaveBeenCalledWith({
       weightKg: 22.5,
       reps: 8,
+      durationSec: null,
       status: 'completed',
       setType: 'working',
       note: null,
@@ -38,6 +39,7 @@ describe('SetEntry', () => {
     expect(onSubmit).toHaveBeenCalledWith({
       weightKg: 0,
       reps: 0,
+      durationSec: null,
       status: 'skipped',
       setType: 'working',
       note: null,
@@ -53,6 +55,7 @@ describe('SetEntry', () => {
     expect(onSubmit).toHaveBeenCalledWith({
       weightKg: 41,
       reps: 9,
+      durationSec: null,
       status: 'completed',
       setType: 'working',
       note: null,
@@ -77,6 +80,7 @@ describe('SetEntry', () => {
     expect(onSubmit).toHaveBeenLastCalledWith({
       weightKg: 20,
       reps: 15,
+      durationSec: null,
       status: 'completed',
       setType: 'warmup',
       note: 'Easy',
@@ -86,6 +90,7 @@ describe('SetEntry', () => {
     expect(onSubmit).toHaveBeenLastCalledWith({
       weightKg: 20,
       reps: 15,
+      durationSec: null,
       status: 'completed',
       setType: 'warmup',
       note: null,
@@ -110,5 +115,66 @@ describe('SetEntry', () => {
     );
     expect(screen.getByText('No such set last time')).toBeTruthy();
     expect(screen.getByText('Set 4')).toBeTruthy();
+  });
+
+  it('records a timed set from typed time; "1.30" means 1 min 30 s', async () => {
+    const onSubmit = vi.fn();
+    render(<SetEntry trackingType="duration" onSubmit={onSubmit} />);
+    expect(screen.queryByRole('textbox', { name: 'Reps' })).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: /Record set/ }));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert').textContent).toMatch(/Time/);
+    await userEvent.type(screen.getByRole('textbox', { name: 'Time' }), '1.30');
+    await userEvent.click(screen.getByRole('button', { name: 'Time: increase by 5' }));
+    expect((screen.getByRole('textbox', { name: 'Time' }) as HTMLInputElement).value).toBe('1:35');
+    await userEvent.click(screen.getByRole('button', { name: /Record set/ }));
+    expect(onSubmit).toHaveBeenCalledWith({
+      weightKg: 0,
+      reps: 0,
+      durationSec: 95,
+      status: 'completed',
+      setType: 'working',
+      note: null,
+    });
+  });
+
+  it('measures a timed set with the stopwatch; recording stops it', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const onSubmit = vi.fn();
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      render(<SetEntry trackingType="duration" onSubmit={onSubmit} />);
+      await user.click(screen.getByRole('button', { name: 'Start stopwatch' }));
+      await act(() => vi.advanceTimersByTimeAsync(42_000));
+      expect((screen.getByRole('textbox', { name: 'Time' }) as HTMLInputElement).value).toBe(
+        '0:42',
+      );
+      await user.click(screen.getByRole('button', { name: /Record set/ }));
+      expect(onSubmit.mock.calls[0]![0]).toMatchObject({ durationSec: 42, reps: 0 });
+      expect(screen.getByRole('button', { name: 'Start stopwatch' })).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('records body-weight reps with optional extra weight', async () => {
+    const onSubmit = vi.fn();
+    render(<SetEntry trackingType="bodyweight" onSubmit={onSubmit} />);
+    await userEvent.type(screen.getByRole('textbox', { name: 'Reps' }), '12');
+    await userEvent.click(screen.getByRole('button', { name: /Record set/ }));
+    expect(onSubmit.mock.calls[0]![0]).toMatchObject({ weightKg: 0, reps: 12, durationSec: null });
+    expect(screen.getByRole('textbox', { name: 'Extra weight, kg' })).toBeTruthy();
+  });
+
+  it('labels the weight as a counterweight and shows last time with a minus', () => {
+    render(
+      <SetEntry
+        trackingType="assisted"
+        lastTime={() => ({ weightKg: 30, reps: 8, status: 'completed' })}
+        onSubmit={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole('textbox', { name: 'Counterweight, kg' })).toBeTruthy();
+    expect(screen.getByText('−30 kg × 8')).toBeTruthy();
   });
 });

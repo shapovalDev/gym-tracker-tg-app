@@ -44,6 +44,7 @@ export default function SessionDetailPage() {
         setType: v.setType,
         note: v.note,
         reps: v.reps,
+        durationSec: v.durationSec,
         status: v.status,
       }),
     {
@@ -105,6 +106,7 @@ export default function SessionDetailPage() {
                   <li key={set.id}>
                     <SetEntry
                       key={`edit-${set.id}`}
+                      trackingType={e.trackingType}
                       title={t('Edit: {name}', {
                         name:
                           set.setType === 'warmup'
@@ -123,6 +125,7 @@ export default function SessionDetailPage() {
                   <SetRow
                     key={set.id}
                     set={set}
+                    trackingType={e.trackingType}
                     label={labels.get(set) ?? ''}
                     onEdit={editable ? () => setEditing({ set, exerciseId: e.id }) : undefined}
                     onDelete={editable ? () => setDeletingSet(set) : undefined}
@@ -137,6 +140,7 @@ export default function SessionDetailPage() {
               (editing && !editing.set && editing.exerciseId === e.id ? (
                 <SetEntry
                   key={`add-${e.id}`}
+                  trackingType={e.trackingType}
                   counts={{
                     working: setsOfType(e.sets, 'working').length,
                     warmup: setsOfType(e.sets, 'warmup').length,

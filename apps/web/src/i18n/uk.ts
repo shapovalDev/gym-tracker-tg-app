@@ -405,4 +405,45 @@ export const uk = {
   'Form broke down': 'Техніка попливла',
   'With a spotter': 'Зі страховкою',
   'With a pause': 'З паузою',
+  // Tracking types
+  'How to track': 'Як записувати',
+  'Weight × reps': 'Вага × повтори',
+  'Body weight': 'Власна вага',
+  'Assisted (counterweight)': 'З противагою',
+  'For time': 'На час',
+  'Weight and reps, e.g. bench press.': 'Вага і повтори, наприклад жим лежачи.',
+  'Reps with your own body weight, optionally with extra weight. E.g. pull-ups.':
+    'Повтори з власною вагою, за бажання — з додатковою. Наприклад, підтягування.',
+  'The machine helps with a counterweight: the less, the better. E.g. gravitron.':
+    'Тренажер допомагає противагою: що менша, то краще. Наприклад, гравітрон.',
+  'Time with a stopwatch, optionally with extra weight. E.g. plank.':
+    'Час із секундоміром, за бажання — з додатковою вагою. Наприклад, планка.',
+  'This exercise already has sets. A timed type cannot be switched to or from a rep-based one.':
+    'У цієї вправи вже є підходи. Тип «на час» не можна змінити на тип із повторами і навпаки.',
+  'Extra weight, kg': 'Дод. вага, кг',
+  'Counterweight, kg': 'Противага, кг',
+  Time: 'Час',
+  'minutes and seconds': 'хвилини й секунди',
+  'Time: e.g. 1:30 or 45 seconds': 'Час: наприклад, 1:30 або 45 секунд',
+  'Start stopwatch': 'Запустити секундомір',
+  'Stop stopwatch': 'Зупинити секундомір',
+  'Seconds from': 'Секунд від',
+  'Time is in seconds: e.g. 30 to 60.': 'Час у секундах: наприклад, від 30 до 60.',
+  'Extra weight': 'Додаткова вага',
+  Counterweight: 'Противага',
+  'The most reps in one working set in each workout.':
+    'Найбільше повторень в одному робочому підході за кожне тренування.',
+  'The heaviest extra weight in each workout.': 'Найбільша додаткова вага за кожне тренування.',
+  'The smallest counterweight in each workout. Less help means more strength, so the chart goes up as it drops.':
+    'Найменша противага за кожне тренування. Менше допомоги — більше сили, тому графік росте, коли вона зменшується.',
+  'The longest working set in each workout.': 'Найдовший робочий підхід за кожне тренування.',
+  'Most reps in period': 'Найбільше повторень за період',
+  'Least counterweight in period': 'Найменша противага за період',
+  'Longest in period': 'Найдовше за період',
+  'Best in period': 'Найкраще за період',
+  'Most reps with {weight} counterweight': 'Найбільше повторень із противагою {weight}',
+  'Most reps in one set': 'Найбільше повторень за підхід',
+  'Heaviest extra weight': 'Найбільша додаткова вага',
+  'Least counterweight': 'Найменша противага',
+  'Longest set': 'Найдовший підхід',
 } as const satisfies Record<string, string>;

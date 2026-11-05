@@ -1,6 +1,15 @@
 'use client';
 
-import { formatWeight, PERIODS, type Period, type SessionPoint } from '@gym/shared';
+import {
+  formatSeconds,
+  formatWeight,
+  PERIODS,
+  type Period,
+  type PersonalRecords,
+  type RecordEntry,
+  type SessionPoint,
+  type TrackingType,
+} from '@gym/shared';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import {
@@ -20,7 +29,7 @@ import {
 } from '@/components/ui';
 import { ProgressChart } from '@/features/progress/progress-chart';
 import { errorMessage } from '@/lib/api';
-import { formatDate, formatShortDate, formatVolume, kg } from '@/lib/format';
+import { formatDate, formatSetResult, formatShortDate, formatVolume, kg } from '@/lib/format';
 import { useExerciseAnalytics, useExercises, useSummary } from '@/lib/queries';
 import { count, t, type MsgKey } from '@/i18n';
 
@@ -32,34 +41,77 @@ const PERIOD_LABELS = {
   all: 'All',
 } as const satisfies Record<Period, MsgKey>;
 
-type Metric = 'weight' | 'reps' | 'volume';
-const METRICS: { value: Metric; label: MsgKey; unit: MsgKey; explain: MsgKey }[] = [
-  {
+type Metric = 'weight' | 'reps' | 'volume' | 'maxReps' | 'extra' | 'assist' | 'time';
+interface MetricDef {
+  value: Metric;
+  label: MsgKey;
+  /** Empty for time, which is formatted as "1:15". */
+  unit: MsgKey | null;
+  explain: MsgKey;
+  of: (p: SessionPoint) => number | null;
+}
+const M: Record<Metric, MetricDef> = {
+  weight: {
     value: 'weight',
     label: 'Weight',
     unit: 'kg',
     explain: 'The heaviest weight among completed working sets in each workout.',
+    of: (p) => p.maxWeightKg,
   },
-  {
+  reps: {
     value: 'reps',
     label: 'Reps',
     unit: 'reps',
     explain:
       'The best number of reps at the selected weight. Only sets with the same weight are compared.',
+    of: (p) => p.repsAtWeight,
   },
-  {
+  volume: {
     value: 'volume',
     label: 'Volume',
     unit: 'kg',
     explain: 'The sum of weight × reps over all working sets of the exercise in a workout.',
+    of: (p) => p.volumeKg,
   },
-];
-
-function valueOf(p: SessionPoint, m: Metric): number | null {
-  if (m === 'weight') return p.maxWeightKg;
-  if (m === 'reps') return p.repsAtWeight;
-  return p.volumeKg;
-}
+  maxReps: {
+    value: 'maxReps',
+    label: 'Reps',
+    unit: 'reps',
+    explain: 'The most reps in one working set in each workout.',
+    of: (p) => p.maxReps,
+  },
+  extra: {
+    value: 'extra',
+    label: 'Extra weight',
+    unit: 'kg',
+    explain: 'The heaviest extra weight in each workout.',
+    of: (p) => p.maxWeightKg,
+  },
+  assist: {
+    value: 'assist',
+    label: 'Counterweight',
+    unit: 'kg',
+    explain:
+      'The smallest counterweight in each workout. Less help means more strength, so the chart goes up as it drops.',
+    of: (p) => p.minWeightKg,
+  },
+  time: {
+    value: 'time',
+    label: 'Time',
+    unit: null,
+    explain: 'The longest working set in each workout.',
+    of: (p) => p.maxDurationSec,
+  },
+};
+/** Charts that make sense for each way of tracking; the first is the default. */
+const METRICS_BY_TYPE: Record<TrackingType, MetricDef[]> = {
+  weight_reps: [M.weight, M.reps, M.volume],
+  bodyweight: [M.maxReps, M.extra],
+  assisted: [M.assist, M.reps],
+  duration: [M.time, M.extra],
+};
+const formatMetric = (m: MetricDef, v: number) =>
+  m.unit === null ? formatSeconds(v) : `${formatWeight(v)} ${t(m.unit)}`;
 
 export default function ProgressPage() {
   return (
@@ -73,11 +125,16 @@ function Progress() {
   const router = useRouter();
   const params = useSearchParams();
   const [period, setPeriod] = useState<Period>('90d');
-  const [metric, setMetric] = useState<Metric>('weight');
+  const [chosenMetric, setMetric] = useState<Metric>('weight');
   const [weight, setWeight] = useState<number | null>(null);
   const [showTable, setShowTable] = useState(false);
   const { data: exercises, isLoading: exLoading } = useExercises({ archived: true });
   const exerciseId = params.get('exercise') ?? exercises?.[0]?.id ?? null;
+  const type: TrackingType =
+    exercises?.find((e) => e.id === exerciseId)?.trackingType ?? 'weight_reps';
+  const metrics = METRICS_BY_TYPE[type];
+  const meta = metrics.find((m) => m.value === chosenMetric) ?? metrics[0]!;
+  const metric = meta.value;
   const analytics = useExerciseAnalytics(exerciseId, period, metric === 'reps' ? weight : null);
   const summary = useSummary(period);
   const a = analytics.data;
@@ -89,18 +146,41 @@ function Progress() {
       setWeight(a.availableWeights[0] ?? null);
   }, [metric, a, weight]);
 
-  const meta = METRICS.find((m) => m.value === metric)!;
   const chartPoints = useMemo(
     () =>
       (a?.points ?? []).flatMap((p) => {
-        const v = valueOf(p, metric);
+        const v = meta.of(p);
         return v === null ? [] : [{ date: p.date, value: v }];
       }),
-    [a, metric],
+    [a, meta],
   );
-  const bestWeightInPeriod = a?.points.length
-    ? Math.max(...a.points.map((p) => p.maxWeightKg))
-    : null;
+  // The headline "best in period" in the exercise's own terms.
+  const bestInPeriod = (() => {
+    const ps = a?.points ?? [];
+    if (ps.length === 0) return null;
+    switch (type) {
+      case 'bodyweight':
+        return {
+          label: t('Most reps in period'),
+          value: String(Math.max(...ps.map((p) => p.maxReps))),
+        };
+      case 'assisted':
+        return {
+          label: t('Least counterweight in period'),
+          value: kg(Math.min(...ps.map((p) => p.minWeightKg))),
+        };
+      case 'duration':
+        return {
+          label: t('Longest in period'),
+          value: formatSeconds(Math.max(...ps.map((p) => p.maxDurationSec ?? 0))),
+        };
+      default:
+        return {
+          label: t('Max weight in period'),
+          value: kg(Math.max(...ps.map((p) => p.maxWeightKg))),
+        };
+    }
+  })();
 
   if (exLoading) return <PageLoader />;
   if (!exercises || exercises.length === 0)
@@ -168,7 +248,7 @@ function Progress() {
                 role="group"
                 aria-label={t('What to show on the chart')}
               >
-                {METRICS.map((m) => (
+                {metrics.map((m) => (
                   <Chip
                     key={m.value}
                     active={metric === m.value}
@@ -210,7 +290,7 @@ function Progress() {
               ) : chartPoints.length === 1 ? (
                 <div className="py-8 text-center">
                   <p className="num text-[32px] font-semibold">
-                    {formatWeight(chartPoints[0]!.value)} {t(meta.unit)}
+                    {formatMetric(meta, chartPoints[0]!.value)}
                   </p>
                   <p className="text-[14px] text-muted">
                     {formatDate(chartPoints[0]!.date)}.{' '}
@@ -218,7 +298,13 @@ function Progress() {
                   </p>
                 </div>
               ) : (
-                <ProgressChart points={chartPoints} unit={t(meta.unit)} label={t(meta.label)} />
+                <ProgressChart
+                  points={chartPoints}
+                  unit={meta.unit ? t(meta.unit) : ''}
+                  label={t(meta.label)}
+                  format={meta.unit === null ? formatSeconds : undefined}
+                  invert={metric === 'assist'}
+                />
               )}
               <p className="text-[13px] text-muted">{t(meta.explain)}</p>
               {chartPoints.length > 0 && (
@@ -244,7 +330,7 @@ function Progress() {
                       <tr key={p.date} className="border-t border-line">
                         <td className="py-2">{formatShortDate(p.date)}</td>
                         <td className="num py-2 text-right font-semibold">
-                          {formatWeight(p.value)} {t(meta.unit)}
+                          {formatMetric(meta, p.value)}
                         </td>
                       </tr>
                     ))}
@@ -260,8 +346,8 @@ function Progress() {
                 sub={count(a.summary.workingSets, 'set')}
               />
               <Stat
-                label={t('Max weight in period')}
-                value={bestWeightInPeriod !== null ? kg(bestWeightInPeriod) : '—'}
+                label={bestInPeriod?.label ?? t('Best in period')}
+                value={bestInPeriod?.value ?? '—'}
               />
             </div>
           </>
@@ -271,18 +357,16 @@ function Progress() {
       {a && (
         <Section title={t('Personal records')} hint={t('All time')}>
           <Card className="divide-y divide-line">
-            <RecordRow
-              label={t('Best working weight')}
-              value={
-                a.records.bestWeight
-                  ? `${kg(a.records.bestWeight.weightKg)} × ${a.records.bestWeight.reps}`
-                  : null
-              }
-              date={a.records.bestWeight?.date}
-            />
+            {records(a.records, type).map((r) => (
+              <RecordRow key={r.label} label={r.label} value={r.value} date={r.date} />
+            ))}
             {metric === 'reps' && weight !== null && (
               <RecordRow
-                label={t('Most reps at {weight}', { weight: kg(weight) })}
+                label={
+                  type === 'assisted'
+                    ? t('Most reps with {weight} counterweight', { weight: kg(weight) })
+                    : t('Most reps at {weight}', { weight: kg(weight) })
+                }
                 value={
                   a.records.bestRepsAtWeight
                     ? t('{reps} reps', { reps: a.records.bestRepsAtWeight.reps })
@@ -291,18 +375,50 @@ function Progress() {
                 date={a.records.bestRepsAtWeight?.date}
               />
             )}
-            <RecordRow
-              label={t('Volume in one workout')}
-              value={
-                a.records.bestSessionVolume ? formatVolume(a.records.bestSessionVolume.value) : null
-              }
-              date={a.records.bestSessionVolume?.date}
-            />
+            {type === 'weight_reps' && (
+              <RecordRow
+                label={t('Volume in one workout')}
+                value={
+                  a.records.bestSessionVolume
+                    ? formatVolume(a.records.bestSessionVolume.value)
+                    : null
+                }
+                date={a.records.bestSessionVolume?.date}
+              />
+            )}
           </Card>
         </Section>
       )}
     </>
   );
+}
+
+/** All-time records that make sense for the way the exercise is tracked. */
+function records(
+  r: PersonalRecords,
+  type: TrackingType,
+): { label: string; value: string | null; date?: string }[] {
+  const row = (label: string, e: RecordEntry | null, text?: (e: RecordEntry) => string) => ({
+    label,
+    value: e ? (text ? text(e) : formatSetResult(e, type)) : null,
+    date: e?.date,
+  });
+  switch (type) {
+    case 'bodyweight':
+      return [
+        row(t('Most reps in one set'), r.bestReps),
+        row(t('Heaviest extra weight'), r.bestWeight),
+      ];
+    case 'assisted':
+      return [row(t('Least counterweight'), r.leastWeight)];
+    case 'duration':
+      return [
+        row(t('Longest set'), r.longestDuration),
+        row(t('Heaviest extra weight'), r.bestWeight),
+      ];
+    default:
+      return [row(t('Best working weight'), r.bestWeight)];
+  }
 }
 
 function RecordRow({ label, value, date }: { label: string; value: string | null; date?: string }) {

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   DESCRIPTION_MAX,
+  DURATION_MAX_SEC,
   MAX_SETS_PER_EXERCISE,
   MUSCLE_GROUPS,
   NAME_MAX,
@@ -10,6 +11,7 @@ import {
   SET_NOTE_MAX,
   SET_STATUSES,
   SET_TYPES,
+  TRACKING_TYPES,
   LOCALES,
   WEIGHT_MAX_KG,
   WEIGHT_MIN_KG,
@@ -33,6 +35,7 @@ export const sessionStatusSchema = z.enum(SESSION_STATUSES);
 export const setStatusSchema = z.enum(SET_STATUSES);
 export const setTypeSchema = z.enum(SET_TYPES);
 export const periodSchema = z.enum(PERIODS);
+export const trackingTypeSchema = z.enum(TRACKING_TYPES);
 
 export const weightKgSchema = z
   .number()
@@ -46,12 +49,20 @@ export const meUpdateSchema = z.object({ locale: z.enum(LOCALES).nullable() });
 export const duplicateSchema = z.object({ name: name.optional() });
 
 // ---- Exercises -------------------------------------------------------------
-export const exerciseCreateSchema = z.object({
+const exerciseFields = {
   name,
   muscleGroup: muscleGroupSchema.nullish().transform((v) => v ?? null),
   description: optionalText,
+};
+export const exerciseCreateSchema = z.object({
+  ...exerciseFields,
+  trackingType: trackingTypeSchema.default('weight_reps'),
 });
-export const exerciseUpdateSchema = exerciseCreateSchema.partial();
+// Built separately so that a PATCH without `trackingType` never resets it to the default.
+export const exerciseUpdateSchema = z
+  .object(exerciseFields)
+  .partial()
+  .extend({ trackingType: trackingTypeSchema.optional() });
 export const exerciseListQuerySchema = z.object({
   search: z.string().trim().max(NAME_MAX).optional(),
   muscleGroup: muscleGroupSchema.optional(),
@@ -155,7 +166,16 @@ export const setUpsertSchema = z
     sessionExerciseId: idSchema,
     setNumber: z.number().int().min(1).max(MAX_SETS_PER_EXERCISE),
     weightKg: weightKgSchema,
+    /** Rep-based exercises; 0 for timed ones. */
     reps: repsSchema,
+    /** Timed exercises only (seconds); null otherwise. */
+    durationSec: z
+      .number()
+      .int('Time must be whole seconds')
+      .min(0)
+      .max(DURATION_MAX_SEC)
+      .nullish()
+      .transform((v) => v ?? null),
     status: setStatusSchema,
     setType: setTypeSchema.default('working'),
     note: z
@@ -165,8 +185,9 @@ export const setUpsertSchema = z
       .nullish()
       .transform((v) => (v ? v : null)),
   })
-  .refine((s) => s.status !== 'completed' || s.reps >= 1, {
-    message: 'A completed set needs at least 1 repetition',
+  // Which of the two applies depends on the exercise; the service checks that.
+  .refine((s) => s.status !== 'completed' || s.reps >= 1 || (s.durationSec ?? 0) >= 1, {
+    message: 'A completed set needs at least 1 repetition or 1 second',
     path: ['reps'],
   });
 

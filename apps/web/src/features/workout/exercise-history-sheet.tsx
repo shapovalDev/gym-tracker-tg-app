@@ -1,9 +1,9 @@
 'use client';
 
-import { formatWeight, setLabels } from '@gym/shared';
+import { setLabels, type TrackingType } from '@gym/shared';
 import { EmptyState, ErrorState, PageLoader, Sheet, cx } from '@/components/ui';
 import { errorMessage } from '@/lib/api';
-import { formatDate } from '@/lib/format';
+import { formatDate, formatSetResult } from '@/lib/format';
 import { useExerciseHistory } from '@/lib/queries';
 import { t } from '@/i18n';
 
@@ -11,11 +11,13 @@ import { t } from '@/i18n';
 export function ExerciseHistorySheet({
   exerciseId,
   name,
+  trackingType = 'weight_reps',
   open,
   onClose,
 }: {
   exerciseId: string;
   name: string;
+  trackingType?: TrackingType;
   open: boolean;
   onClose: () => void;
 }) {
@@ -62,7 +64,7 @@ export function ExerciseHistorySheet({
                               <span className="text-muted">{t('skipped')}</span>
                             ) : (
                               <span className={cx('num', !warmup && 'font-semibold')}>
-                                {formatWeight(x.weightKg)} {t('kg')} × {x.reps}
+                                {formatSetResult(x, trackingType)}
                               </span>
                             )}
                             {x.note && (

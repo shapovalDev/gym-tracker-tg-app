@@ -1,4 +1,4 @@
-import { formatWeight } from '@gym/shared';
+import { formatSeconds, formatWeight, type TrackingType } from '@gym/shared';
 import { count, intlLocale, t } from '@/i18n';
 
 const fmt = (opts: Intl.DateTimeFormatOptions) => new Intl.DateTimeFormat(intlLocale(), opts);
@@ -48,11 +48,60 @@ export function formatVolume(v: number): string {
   return `${new Intl.NumberFormat(intlLocale(), { maximumFractionDigits: 1 }).format(v)} ${t('kg')}`;
 }
 
+/** Fields of a recorded set needed to show its result. */
+export interface SetResult {
+  weightKg: number;
+  reps: number;
+  durationSec?: number | null;
+}
+
+/**
+ * The result of a completed set in the exercise's terms:
+ * "50 kg × 8", "+10 kg × 8" / "8 reps", "−30 kg × 8" (counterweight), "1:15 · +10 kg".
+ * `compact` drops units for dense rows ("50×8", "−30×8", "1:15").
+ */
+export function formatSetResult(s: SetResult, type: TrackingType, compact = false): string {
+  const w = formatWeight(s.weightKg);
+  const load = compact ? w : `${w} ${t('kg')}`;
+  const times = compact ? '×' : ' × ';
+  switch (type) {
+    case 'duration': {
+      const time = formatSeconds(s.durationSec ?? 0);
+      if (s.weightKg <= 0) return time;
+      return compact ? `${time}+${w}` : `${time} · +${load}`;
+    }
+    case 'bodyweight':
+      if (s.weightKg <= 0) return compact ? String(s.reps) : t('{reps} reps', { reps: s.reps });
+      return `+${load}${times}${s.reps}`;
+    case 'assisted':
+      return `${s.weightKg > 0 ? '−' : ''}${load}${times}${s.reps}`;
+    default:
+      return `${load}${times}${s.reps}`;
+  }
+}
+
 export function targetLabel(
   plannedSets: number | null,
   min: number | null,
   max: number | null,
+  /** Timed exercises keep their target in seconds. */
+  type: TrackingType = 'weight_reps',
 ): string | null {
+  if (type === 'duration') {
+    const range =
+      min && max
+        ? min === max
+          ? formatSeconds(min)
+          : `${formatSeconds(min)}–${formatSeconds(max)}`
+        : min
+          ? `${formatSeconds(min)}+`
+          : max
+            ? t('up to {n}', { n: formatSeconds(max) })
+            : null;
+    if (plannedSets && range) return `${plannedSets} × ${range}`;
+    if (plannedSets) return count(plannedSets, 'set');
+    return range;
+  }
   const reps =
     min && max
       ? min === max
@@ -68,6 +117,14 @@ export function targetLabel(
   if (reps) return t('{reps} reps', { reps });
   return null;
 }
+
+// English keys, translated at render time.
+export const TRACKING_LABELS = {
+  weight_reps: 'Weight × reps',
+  bodyweight: 'Body weight',
+  assisted: 'Assisted (counterweight)',
+  duration: 'For time',
+} as const;
 
 export const muscleLabel = (g: string) =>
   t(

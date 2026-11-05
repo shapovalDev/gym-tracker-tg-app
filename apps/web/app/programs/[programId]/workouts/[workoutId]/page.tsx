@@ -174,7 +174,12 @@ export default function WorkoutEditorPage() {
         ) : (
           <ol className="space-y-2.5">
             {items.map((we, i) => {
-              const target = targetLabel(we.plannedSets, we.targetRepsMin, we.targetRepsMax);
+              const target = targetLabel(
+                we.plannedSets,
+                we.targetRepsMin,
+                we.targetRepsMax,
+                we.exercise.trackingType,
+              );
               return (
                 <li key={we.id}>
                   <Card className="overflow-hidden">
@@ -336,6 +341,8 @@ function PlanSheet({
     setMax(item.targetRepsMax?.toString() ?? '');
     setNotes(item.notes ?? '');
   }, [item]);
+  // Timed exercises keep the target range in seconds.
+  const timed = item?.exercise.trackingType === 'duration';
   const minN = toInt(min);
   const maxN = toInt(max);
   const rangeError =
@@ -378,7 +385,7 @@ function PlanSheet({
               placeholder="—"
             />
             <Field
-              label={t('Reps from')}
+              label={timed ? t('Seconds from') : t('Reps from')}
               inputMode="numeric"
               type="number"
               min={1}
@@ -398,6 +405,7 @@ function PlanSheet({
             />
           </div>
           <p className="-mt-2 px-1 text-[13px] text-muted">
+            {timed && `${t('Time is in seconds: e.g. 30 to 60.')} `}
             {t('This is a target. During the workout you can do as many sets as you like.')}
           </p>
           <TextArea

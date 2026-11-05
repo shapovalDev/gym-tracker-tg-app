@@ -1,24 +1,63 @@
 'use client';
 
 import {
+  formatSeconds,
   formatWeight,
   setLabels,
   setsOfType,
   type PreviousResultDto,
   type SetDto,
+  type TrackingType,
 } from '@gym/shared';
 import { ChevronRight, TrashIcon } from '@/components/icons';
 import { IconButton, cx } from '@/components/ui';
+import { formatSetResult } from '@/lib/format';
 import { isPendingSet } from '@/lib/outbox-core';
 import { t } from '@/i18n';
 
+/** The big number of a set row: the main value large, units and extras small. */
+function SetValue({ set, type }: { set: SetDto; type: TrackingType }) {
+  const small = 'font-sans text-[15px] font-medium text-muted';
+  const w = formatWeight(set.weightKg);
+  if (type === 'duration')
+    return (
+      <>
+        {formatSeconds(set.durationSec ?? 0)}
+        {set.weightKg > 0 && (
+          <span className={small}>
+            {' '}
+            · +{w} {t('kg')}
+          </span>
+        )}
+      </>
+    );
+  if (type === 'bodyweight' && set.weightKg <= 0)
+    return (
+      <>
+        {set.reps}
+        <span className={small}> {t('reps')}</span>
+      </>
+    );
+  const sign = type === 'bodyweight' ? '+' : type === 'assisted' && set.weightKg > 0 ? '−' : '';
+  return (
+    <>
+      {sign}
+      {w}
+      <span className={small}> {t('kg')} × </span>
+      {set.reps}
+    </>
+  );
+}
+
 export function SetRow({
   set,
+  trackingType = 'weight_reps',
   label,
   onEdit,
   onDelete,
 }: {
   set: SetDto;
+  trackingType?: TrackingType;
   /** "1", "2"… for working sets, "W1"… for warm-ups (see setLabels). */
   label: string;
   onEdit?: () => void;
@@ -61,9 +100,7 @@ export function SetRow({
           <span
             className={cx('num font-semibold', warmup ? 'text-[19px] text-muted' : 'text-[23px]')}
           >
-            {formatWeight(set.weightKg)}
-            <span className="font-sans text-[15px] font-medium text-muted"> {t('kg')} × </span>
-            {set.reps}
+            <SetValue set={set} type={trackingType} />
           </span>
         ) : (
           <span className="text-[16px] font-medium text-muted">{t('Skipped')}</span>
@@ -84,10 +121,12 @@ export function SetRow({
 /** Compact "last time" line; opens the full exercise history. */
 export function LastTimeButton({
   previous,
+  trackingType = 'weight_reps',
   date,
   onOpen,
 }: {
   previous: PreviousResultDto | null;
+  trackingType?: TrackingType;
   date: string | null;
   onOpen: () => void;
 }) {
@@ -110,7 +149,7 @@ export function LastTimeButton({
                 key={s.setNumber}
                 className={s.status === 'skipped' ? 'text-muted line-through' : ''}
               >
-                {formatWeight(s.weightKg)}×{s.reps}
+                {formatSetResult(s, trackingType, true)}
               </span>
             ))}
             {warmups > 0 && (

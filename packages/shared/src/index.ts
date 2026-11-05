@@ -6,4 +6,6 @@ export * from './domain/cycle';
 export * from './domain/metrics';
 export * from './domain/period';
 export * from './domain/sets';
+export * from './domain/tracking';
+export * from './domain/duration';
 export * from './domain/schedule';

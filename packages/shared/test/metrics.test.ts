@@ -97,6 +97,9 @@ describe('personalRecords', () => {
       bestWeight: null,
       bestE1rm: null,
       bestRepsAtWeight: null,
+      bestReps: null,
+      leastWeight: null,
+      longestDuration: null,
       bestSessionVolume: null,
     });
   });
@@ -165,5 +168,74 @@ describe('warm-up sets', () => {
       exercises: [{ sets: [warm({ weightKg: 20, reps: 15 }), set({ weightKg: 60, reps: 8 })] }],
     });
     expect(s).toMatchObject({ totalSets: 1, warmupSets: 1, volumeKg: 480, exercisesCompleted: 1 });
+  });
+});
+
+describe('tracking types', () => {
+  it('counts a timed set as working and keeps it out of volume', () => {
+    const plank = set({ weightKg: 0, reps: 0, durationSec: 60, trackingType: 'duration' });
+    expect(isWorkingSet(plank)).toBe(true);
+    expect(isWorkingSet({ ...plank, durationSec: 0 })).toBe(false);
+    expect(isWorkingSet({ ...plank, setType: 'warmup' })).toBe(false);
+    expect(volumeKg([plank, set({ weightKg: 10, reps: 0, durationSec: 30 })])).toBe(0);
+  });
+
+  it('excludes counterweights and extra body-weight load from volume and e1RM', () => {
+    const sets = [
+      set({ weightKg: 30, reps: 8, trackingType: 'assisted' }),
+      set({ weightKg: 10, reps: 6, trackingType: 'bodyweight' }),
+      set({ weightKg: 50, reps: 5 }),
+    ];
+    expect(volumeKg(sets)).toBe(250);
+    const [p] = sessionPoints(sets.slice(0, 2));
+    expect(p!.bestE1rmKg).toBeNull();
+    expect(personalRecords(sets.slice(0, 2)).bestE1rm).toBeNull();
+    expect(
+      summarizeSession({
+        startedAt: d1,
+        completedAt: d2,
+        exercises: [{ trackingType: 'assisted', sets: [sets[0]!] }, { sets: [sets[2]!] }],
+      }).volumeKg,
+    ).toBe(250);
+  });
+
+  it('records the smallest counterweight, most reps and longest hold', () => {
+    const assisted = [
+      set({ sessionId: 'a', weightKg: 40, reps: 8, trackingType: 'assisted' }),
+      set({ sessionId: 'b', date: d2, weightKg: 25, reps: 6, trackingType: 'assisted' }),
+      set({ sessionId: 'b', date: d2, weightKg: 25, reps: 7, trackingType: 'assisted' }),
+    ];
+    const r = personalRecords(assisted);
+    expect(r.leastWeight).toMatchObject({ weightKg: 25, reps: 7, sessionId: 'b' });
+    expect(r.bestReps).toMatchObject({ reps: 8, sessionId: 'a' });
+    const points = sessionPoints(assisted);
+    expect(points.map((p) => [p.minWeightKg, p.maxReps])).toEqual([
+      [40, 8],
+      [25, 7],
+    ]);
+
+    const holds = [
+      set({ reps: 0, weightKg: 0, durationSec: 45, trackingType: 'duration' }),
+      set({ reps: 0, weightKg: 0, durationSec: 70, date: d2, sessionId: 's2' }),
+    ];
+    expect(personalRecords(holds).longestDuration).toMatchObject({ value: 70, sessionId: 's2' });
+    expect(sessionPoints(holds).map((p) => p.maxDurationSec)).toEqual([45, 70]);
+  });
+});
+
+describe('duration input', () => {
+  it('parses colons, dots, commas and bare seconds; formats back', async () => {
+    const { parseDurationInput, formatSeconds } = await import('../src');
+    expect(['1:30', '1.30', '1,30', '90', ' 0:05 ', '1:02:05'].map(parseDurationInput)).toEqual([
+      90, 90, 90, 90, 5, 3725,
+    ]);
+    expect(['', 'abc', '1:75', '1:2:3:4', '99999'].map(parseDurationInput)).toEqual([
+      null,
+      null,
+      null,
+      null,
+      null,
+    ]);
+    expect([75, 5, 3725, 0].map(formatSeconds)).toEqual(['1:15', '0:05', '1:02:05', '0:00']);
   });
 });
